@@ -1,0 +1,3 @@
+[submodule "libs/beat-link-cpp"]
+	path = libs/beat-link-cpp
+	url = https://github.com/daitomanabe/beat-link-cpp.git
