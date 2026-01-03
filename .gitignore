@@ -1,0 +1,23 @@
+# Build
+build/
+bin/
+obj/
+
+# IDE
+.vscode/
+*.xcworkspace/
+*.vs/
+*.sln
+*.vcxproj*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Claude Code
+.claude/
+
+# Example build files (keep project structure)
+example-*/bin/
+example-*/obj/
+example-*/build/
