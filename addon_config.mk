@@ -27,7 +27,6 @@ common:
 	ADDON_SOURCES += libs/beat-link-cpp/src/DeviceUpdate.cpp
 	ADDON_SOURCES += libs/beat-link-cpp/src/MixerStatus.cpp
 	ADDON_SOURCES += libs/beat-link-cpp/src/Util.cpp
-	ADDON_SOURCES += libs/beat-link-cpp/src/VirtualCdj.cpp
 
 	# C++ flags (Asio standalone mode, C++17 required)
 	ADDON_CPPFLAGS = -DASIO_STANDALONE -std=c++17
