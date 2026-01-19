@@ -11,15 +11,15 @@ openFrameworks addon for Pioneer DJ Link protocol. Wraps [beat-link-cpp](https:/
 
 ## Requirements
 
-- openFrameworks 0.11.0+
-- C++17 compiler
+- openFrameworks 0.12.0+
+- C++20 compiler
 - Network connection to DJ Link devices (same subnet)
 
 ## Installation
 
 1. Clone to your openFrameworks addons folder:
 ```bash
-cd of_v0.11.x/addons
+cd of_v0.12.x/addons
 git clone --recursive https://github.com/daitomanabe/ofxBeatLink.git
 ```
 
