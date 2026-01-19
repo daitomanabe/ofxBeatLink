@@ -4,6 +4,8 @@
 #include "ofxBeatLink.h"
 #include <array>
 #include <optional>
+#include <numbers>
+#include <ranges>
 
 class ofApp : public ofBaseApp {
 public:
@@ -31,10 +33,15 @@ private:
     uint64_t lastBeatTime = 0;
     float beatProgress = 0.0f;
 
-    // Beat indicators (C++17 inline static)
-    inline static constexpr size_t NUM_BEATS = 4;
+    // Beat indicators (C++20 constexpr with std::array)
+    static constexpr std::size_t NUM_BEATS = 4;
     std::array<float, NUM_BEATS> beatIndicators{};
 
     // Device count
     int deviceCount = 0;
+
+    // C++20 helper: lerp for smooth animation
+    static constexpr auto smoothLerp(float a, float b, float t) noexcept -> float {
+        return std::lerp(a, b, t);
+    }
 };

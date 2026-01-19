@@ -7,6 +7,8 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <ranges>
+#include <chrono>
 
 class ofApp : public ofBaseApp {
 public:
@@ -23,7 +25,7 @@ public:
 private:
     ofxBeatLink beatLink;
 
-    // Device state tracking (C++17 aggregate with optional)
+    // Device state tracking
     struct DeviceStatus {
         ofxBeatLinkDevice info{};
         std::optional<ofxBeatLinkBeat> lastBeat;
@@ -40,10 +42,11 @@ private:
 
     std::map<int, DeviceStatus> devices;
 
-    // Layout constants (C++17 inline static constexpr)
-    inline static constexpr int MAX_DEVICES = 4;
-    inline static constexpr float PANEL_WIDTH = 500.0f;
-    inline static constexpr float PANEL_HEIGHT = 180.0f;
+    // Layout constants (C++20 constexpr)
+    static constexpr int MAX_DEVICES = 4;
+    static constexpr float PANEL_WIDTH = 500.0f;
+    static constexpr float PANEL_HEIGHT = 180.0f;
+    static constexpr uint64_t PLAYING_TIMEOUT_MS = 2000;
 
     // Event log
     struct LogEntry {
@@ -53,7 +56,7 @@ private:
     };
 
     std::deque<LogEntry> eventLog;
-    inline static constexpr size_t MAX_LOG = 12;
+    static constexpr std::size_t MAX_LOG = 12;
 
     void addLog(std::string_view msg, const ofColor& color = ofColor(150));
     void drawDevicePanel(const DeviceStatus& status, float x, float y, float width, float height);

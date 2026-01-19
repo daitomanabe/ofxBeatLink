@@ -1,5 +1,6 @@
 #include "ofApp.h"
 #include <algorithm>
+#include <ranges>
 
 void ofApp::setup() {
     ofSetFrameRate(60);
@@ -13,9 +14,9 @@ void ofApp::setup() {
     ofAddListener(beatLink.deviceFoundEvent, this, &ofApp::onDeviceFound);
     ofAddListener(beatLink.deviceLostEvent, this, &ofApp::onDeviceLost);
 
-    if (beatLink.start()) {
+    if (beatLink.start()) [[likely]] {
         addOscLog("/status", "Started listening");
-    } else {
+    } else [[unlikely]] {
         addOscLog("/error", "Failed to start");
     }
 
@@ -25,17 +26,15 @@ void ofApp::setup() {
 void ofApp::update() {
     beatLink.update();
 
-    // Update messages per second (C++17 if with initializer)
-    if (auto now = ofGetElapsedTimef(); now - lastSecondTime >= 1.0f) {
+    // Update messages per second (C++20 [[likely]]/[[unlikely]])
+    if (auto now = ofGetElapsedTimef(); now - lastSecondTime >= 1.0f) [[unlikely]] {
         messagesPerSecond = static_cast<float>(messageCountLastSecond);
         messageCountLastSecond = 0;
         lastSecondTime = now;
     }
 
-    // Decay log entry alphas
-    for (auto& entry : oscLog) {
-        entry.alpha *= 0.995f;
-    }
+    // Decay log entry alphas using C++20 ranges
+    std::ranges::for_each(oscLog, [](auto& entry) { entry.alpha *= 0.995f; });
 }
 
 void ofApp::draw() {
@@ -95,7 +94,7 @@ void ofApp::draw() {
     ofDrawBitmapString("OSC Monitor:", 35, y);
     y += 25;
 
-    // Log entries
+    // Log entries using C++20 structured bindings
     for (const auto& [address, args, alpha] : oscLog) {
         // Address
         ofSetColor(100, 200, 255, static_cast<int>(50 + alpha * 205));
@@ -121,7 +120,7 @@ void ofApp::exit() {
 }
 
 void ofApp::keyPressed(int key) {
-    if (key == 'q' || key == 'Q') {
+    if (key == 'q' || key == 'Q') [[unlikely]] {
         ofExit();
     }
 }
@@ -139,7 +138,7 @@ void ofApp::onBeat(ofxBeatLinkBeat& beat) {
     ++messagesSent;
     ++messageCountLastSecond;
 
-    // Log using structured string building
+    // Log using string building
     auto args = ofToString(beat.deviceNumber) + " " +
                 ofToString(beat.bpm, 2) + " " +
                 ofToString(beat.beatWithinBar) + " " +
@@ -183,13 +182,14 @@ void ofApp::onDeviceLost(ofxBeatLinkDevice& device) {
 }
 
 void ofApp::addOscLog(std::string_view address, std::string_view args) {
-    // C++17 emplace with aggregate initialization
+    // C++20 designated initializers with emplace
     oscLog.emplace_front(OscLogEntry{
         .address = std::string(address),
         .args = std::string(args),
         .alpha = 1.0f
     });
 
+    // Keep only MAX_OSC_LOG entries
     while (oscLog.size() > MAX_OSC_LOG) {
         oscLog.pop_back();
     }

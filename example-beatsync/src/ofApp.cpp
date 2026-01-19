@@ -1,6 +1,8 @@
 #include "ofApp.h"
 #include <algorithm>
 #include <cmath>
+#include <numbers>
+#include <ranges>
 
 void ofApp::setup() {
     ofSetFrameRate(60);
@@ -18,17 +20,15 @@ void ofApp::setup() {
 void ofApp::update() {
     beatLink.update();
 
-    // Animate pulse using std::lerp (C++20, but we can use similar)
-    pulseRadius += (targetRadius - pulseRadius) * 0.15f;
+    // C++20 std::lerp for smooth animation
+    pulseRadius = std::lerp(pulseRadius, targetRadius, 0.15f);
     pulseAlpha *= 0.92f;
 
-    // Decay beat indicators using range-based for with reference
-    for (auto& ind : beatIndicators) {
-        ind *= 0.9f;
-    }
+    // Decay beat indicators using C++20 ranges
+    std::ranges::for_each(beatIndicators, [](auto& ind) { ind *= 0.9f; });
 
     // Calculate beat progress using nextBeatMs
-    if (latestBeat.has_value() && latestBeat->nextBeatMs > 0) {
+    if (latestBeat.has_value() && latestBeat->nextBeatMs > 0) [[likely]] {
         if (auto now = ofGetElapsedTimeMillis(); lastBeatTime > 0) {
             auto elapsed = now - lastBeatTime;
             auto beatDuration = 60000.0f / latestBeat->bpm;
@@ -43,7 +43,7 @@ void ofApp::draw() {
 
     // BPM display
     ofSetColor(255);
-    if (latestBeat) {
+    if (latestBeat) [[likely]] {
         const auto& beat = *latestBeat;
         auto bpmStr = "BPM: " + ofToString(beat.bpm, 2);
         ofDrawBitmapString(bpmStr, centerX - 40, 40);
@@ -51,7 +51,7 @@ void ofApp::draw() {
         auto deviceStr = beat.deviceName + " #" + ofToString(beat.deviceNumber);
         ofSetColor(150);
         ofDrawBitmapString(deviceStr, centerX - 50, 60);
-    } else {
+    } else [[unlikely]] {
         ofSetColor(100);
         ofDrawBitmapString("Waiting for devices...", centerX - 80, 40);
         ofDrawBitmapString("Connect CDJ/XDJ to the same network", centerX - 130, 60);
@@ -64,12 +64,12 @@ void ofApp::draw() {
     ofDrawCircle(centerX, centerY, 150);
 
     if (latestBeat) {
-        // Progress arc
+        // Progress arc using C++20 std::numbers::pi
         ofSetColor(100, 200, 255);
         ofSetLineWidth(4);
         ofPolyline arc;
-        constexpr auto startAngle = -PI / 2;
-        const auto endAngle = startAngle + beatProgress * TWO_PI;
+        constexpr auto startAngle = -std::numbers::pi_v<float> / 2.0f;
+        const auto endAngle = startAngle + beatProgress * std::numbers::pi_v<float> * 2.0f;
         for (auto a = startAngle; a <= endAngle; a += 0.05f) {
             arc.addVertex(centerX + std::cos(a) * 150, centerY + std::sin(a) * 150);
         }
@@ -78,7 +78,8 @@ void ofApp::draw() {
 
     // Pulse circle
     ofFill();
-    if (latestBeat && latestBeat->beatWithinBar == 1) {
+    const bool isDownbeat = latestBeat && latestBeat->beatWithinBar == 1;
+    if (isDownbeat) {
         ofSetColor(255, 80, 80, static_cast<int>(50 + pulseAlpha * 150));
     } else {
         ofSetColor(80, 150, 255, static_cast<int>(50 + pulseAlpha * 150));
@@ -95,12 +96,12 @@ void ofApp::draw() {
         ofDrawBitmapString(ofToString(latestBeat->beatWithinBar), centerX - 4, centerY + 5);
     }
 
-    // 4 Beat indicators at bottom
+    // 4 Beat indicators at bottom using C++20 ranges with enumerate-like pattern
     constexpr auto indSpacing = 60.0f;
     const auto indY = ofGetHeight() - 100.0f;
     const auto indStartX = centerX - (indSpacing * 1.5f);
 
-    for (size_t i = 0; i < NUM_BEATS; ++i) {
+    for (std::size_t i : std::views::iota(0uz, NUM_BEATS)) {
         const auto x = indStartX + static_cast<float>(i) * indSpacing;
         const auto alpha = beatIndicators[i];
 
@@ -108,12 +109,9 @@ void ofApp::draw() {
         ofSetColor(40);
         ofDrawRectRounded(x - 20, indY - 20, 40, 40, 5);
 
-        // Fill based on indicator value
-        if (i == 0) {
-            ofSetColor(255, 80, 80, static_cast<int>(50 + alpha * 200));
-        } else {
-            ofSetColor(80, 200, 120, static_cast<int>(50 + alpha * 200));
-        }
+        // Fill based on indicator value (beat 1 = red, others = green)
+        const auto [r, g, b] = (i == 0) ? std::tuple{255, 80, 80} : std::tuple{80, 200, 120};
+        ofSetColor(r, g, b, static_cast<int>(50 + alpha * 200));
         ofDrawRectRounded(x - 18, indY - 18, 36, 36, 4);
 
         // Beat number label
@@ -156,8 +154,8 @@ void ofApp::onBeat(ofxBeatLinkBeat& beat) {
     targetRadius = 100.0f;
 
     // Light up the corresponding beat indicator
-    if (auto idx = beat.beatWithinBar - 1; idx >= 0 && idx < static_cast<int>(NUM_BEATS)) {
-        beatIndicators[static_cast<size_t>(idx)] = 1.0f;
+    if (auto idx = beat.beatWithinBar - 1; idx >= 0 && idx < static_cast<int>(NUM_BEATS)) [[likely]] {
+        beatIndicators[static_cast<std::size_t>(idx)] = 1.0f;
     }
 }
 

@@ -28,8 +28,8 @@ common:
 	ADDON_SOURCES += libs/beat-link-cpp/src/MixerStatus.cpp
 	ADDON_SOURCES += libs/beat-link-cpp/src/Util.cpp
 
-	# C++ flags (Asio standalone mode, C++17 required)
-	ADDON_CPPFLAGS = -DASIO_STANDALONE -std=c++17
+	# C++ flags (Asio standalone mode, C++20 required)
+	ADDON_CPPFLAGS = -DASIO_STANDALONE -std=c++20
 
 osx:
 	# macOS specific settings

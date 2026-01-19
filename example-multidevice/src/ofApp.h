@@ -6,6 +6,8 @@
 #include <deque>
 #include <optional>
 #include <string_view>
+#include <ranges>
+#include <span>
 
 class ofApp : public ofBaseApp {
 public:
@@ -21,7 +23,7 @@ public:
 private:
     ofxBeatLink beatLink;
 
-    // Per-device data (C++17 aggregate initialization)
+    // Per-device data
     struct DeviceState {
         ofxBeatLinkDevice info{};
         std::optional<ofxBeatLinkBeat> lastBeat;
@@ -30,16 +32,16 @@ private:
 
     std::map<int, DeviceState> devices;
 
-    // Layout constants (C++17 inline static constexpr)
-    inline static constexpr int MAX_DEVICES = 4;
-    inline static constexpr float PANEL_WIDTH = 450.0f;
-    inline static constexpr float PANEL_HEIGHT = 200.0f;
+    // Layout constants (C++20 constexpr)
+    static constexpr int MAX_DEVICES = 4;
+    static constexpr float PANEL_WIDTH = 450.0f;
+    static constexpr float PANEL_HEIGHT = 200.0f;
 
     void drawDevicePanel(const DeviceState& state, float x, float y, float width, float height);
     void drawEmptySlot(int deviceNum, float x, float y, float width, float height);
 
     // Log
     std::deque<std::string> logMessages;
-    inline static constexpr size_t MAX_LOG = 10;
+    static constexpr std::size_t MAX_LOG = 10;
     void addLog(std::string_view msg);
 };

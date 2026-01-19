@@ -6,6 +6,7 @@
 #include <deque>
 #include <string>
 #include <string_view>
+#include <ranges>
 
 class ofApp : public ofBaseApp {
 public:
@@ -23,9 +24,9 @@ private:
     ofxBeatLink beatLink;
     ofxOscSender oscSender;
 
-    // OSC settings (C++17 inline static constexpr)
-    inline static constexpr std::string_view DEFAULT_HOST = "127.0.0.1";
-    inline static constexpr int DEFAULT_PORT = 9000;
+    // OSC settings (C++20 constexpr string_view)
+    static constexpr std::string_view DEFAULT_HOST = "127.0.0.1";
+    static constexpr int DEFAULT_PORT = 9000;
 
     std::string oscHost{DEFAULT_HOST};
     int oscPort = DEFAULT_PORT;
@@ -44,7 +45,7 @@ private:
     };
 
     std::deque<OscLogEntry> oscLog;
-    inline static constexpr size_t MAX_OSC_LOG = 15;
+    static constexpr std::size_t MAX_OSC_LOG = 15;
 
     void addOscLog(std::string_view address, std::string_view args);
 
