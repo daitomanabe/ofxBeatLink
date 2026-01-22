@@ -230,6 +230,13 @@ Detailed device status (requires VirtualCdj mode).
 - **example-rekordbox-browser** - Browse rekordbox export.pdb database (tracks, artists, albums)
 - **example-cue-points** - Display cue points and hot cues from ANLZ files
 - **example-song-structure** - Visualize phrase analysis (Intro, Verse, Chorus, etc.)
+- **example-beat-grid** - Beat grid visualization with tempo changes
+- **example-color-waveform** - RGB color waveform display from ANLZ files
+- **example-3band-waveform** - 3-band waveform (Low/Mid/High, CDJ-3000 style)
+- **example-playlist-browser** - Browse playlists and track contents
+- **example-tag-browser** - Browse tags and categories (exportExt.pdb)
+- **example-bpm-search** - Search tracks by BPM range with histogram
+- **example-key-wheel** - Circle of Fifths key visualization for harmonic mixing
 
 ## Troubleshooting
 
