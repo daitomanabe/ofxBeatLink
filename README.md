@@ -6,13 +6,13 @@ openFrameworks addon for Pioneer DJ Link protocol. Wraps [beat-link-cpp](https:/
 
 - Detect CDJ, XDJ, DJM devices on the network
 - Receive beat information (BPM, beat position, pitch)
+- VirtualCdj mode for detailed device status (playing, master, sync, on-air)
 - Thread-safe event delivery to main thread
 - Simple openFrameworks-style API with ofEvent
-
 ## Requirements
 
 - openFrameworks 0.12.0+
-- C++20 compiler
+- C++17 compiler
 - Network connection to DJ Link devices (same subnet)
 
 ## Installation
@@ -31,6 +31,8 @@ git submodule update --init --recursive
 
 ## Usage
 
+### Basic Mode (Passive Listener)
+
 ```cpp
 #include "ofxBeatLink.h"
 
@@ -38,17 +40,13 @@ class ofApp : public ofBaseApp {
     ofxBeatLink beatLink;
 
     void setup() {
-        // Register event listeners
         ofAddListener(beatLink.beatEvent, this, &ofApp::onBeat);
         ofAddListener(beatLink.deviceFoundEvent, this, &ofApp::onDeviceFound);
-
-        // Start listening
         beatLink.start();
     }
 
     void update() {
-        // Required: process events on main thread
-        beatLink.update();
+        beatLink.update();  // Required: dispatch events on main thread
     }
 
     void exit() {
@@ -58,12 +56,53 @@ class ofApp : public ofBaseApp {
     }
 
     void onBeat(ofxBeatLinkBeat& beat) {
-        cout << "BPM: " << beat.bpm
-             << " Beat: " << beat.beatWithinBar << "/4" << endl;
+        cout << "BPM: " << beat.bpm << " Beat: " << beat.beatWithinBar << "/4" << endl;
     }
 
     void onDeviceFound(ofxBeatLinkDevice& device) {
         cout << "Found: " << device.deviceName << endl;
+    }
+};
+```
+
+### VirtualCdj Mode (Full Status)
+
+VirtualCdj mode makes your application appear as a CDJ on the network, enabling detailed status updates:
+
+```cpp
+#include "ofxBeatLink.h"
+
+class ofApp : public ofBaseApp {
+    ofxBeatLink beatLink;
+
+    void setup() {
+        // Register for detailed status updates
+        ofAddListener(beatLink.deviceUpdateEvent, this, &ofApp::onDeviceUpdate);
+        ofAddListener(beatLink.masterChangedEvent, this, &ofApp::onMasterChanged);
+
+        beatLink.start();
+        beatLink.startVirtualCdj();  // Enables detailed status
+    }
+
+    void update() {
+        beatLink.update();
+    }
+
+    void exit() {
+        beatLink.stopVirtualCdj();
+        beatLink.stop();
+    }
+
+    void onDeviceUpdate(ofxBeatLinkCdjStatus& status) {
+        cout << status.deviceName
+             << " Playing:" << status.isPlaying
+             << " Master:" << status.isMaster
+             << " Sync:" << status.isSynced
+             << " OnAir:" << status.isOnAir << endl;
+    }
+
+    void onMasterChanged(ofxBeatLinkCdjStatus& status) {
+        cout << status.deviceName << " is now tempo master" << endl;
     }
 };
 ```
@@ -73,6 +112,8 @@ class ofApp : public ofBaseApp {
 ### ofxBeatLink
 
 Main class for DJ Link communication.
+
+#### Basic Methods
 
 | Method | Description |
 |--------|-------------|
@@ -84,13 +125,36 @@ Main class for DJ Link communication.
 | `getLatestBeat(int deviceNumber)` | Get latest beat from specific device |
 | `getLatestBeat()` | Get latest beat from any device |
 
+#### VirtualCdj Methods
+
+| Method | Description |
+|--------|-------------|
+| `startVirtualCdj(int deviceNumber = 0)` | Start as virtual CDJ (0 = auto-assign) |
+| `stopVirtualCdj()` | Stop VirtualCdj |
+| `isVirtualCdjRunning()` | Check if VirtualCdj is running |
+| `getVirtualCdjDeviceNumber()` | Get assigned device number |
+| `setVirtualCdjDeviceName(string)` | Set device name (before start) |
+| `getTempoMaster()` | Get current tempo master status |
+| `getMasterTempo()` | Get master tempo BPM |
+| `getCurrentStatuses()` | Get all device statuses |
+| `getStatusFor(int deviceNumber)` | Get status for specific device |
+
 ### Events
+
+#### Basic Events
 
 | Event | Type | Description |
 |-------|------|-------------|
 | `beatEvent` | `ofxBeatLinkBeat` | Fired on each beat |
 | `deviceFoundEvent` | `ofxBeatLinkDevice` | Fired when device appears |
 | `deviceLostEvent` | `ofxBeatLinkDevice` | Fired when device disappears |
+
+#### VirtualCdj Events
+
+| Event | Type | Description |
+|-------|------|-------------|
+| `deviceUpdateEvent` | `ofxBeatLinkCdjStatus` | Detailed status updates |
+| `masterChangedEvent` | `ofxBeatLinkCdjStatus` | Tempo master changed |
 
 ### ofxBeatLinkBeat
 
@@ -116,6 +180,43 @@ Main class for DJ Link communication.
 | `isOpusQuad` | bool | Is Opus Quad |
 | `isXdjAz` | bool | Is XDJ-AZ |
 
+### ofxBeatLinkCdjStatus
+
+Detailed device status (requires VirtualCdj mode).
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `deviceNumber` | int | Device number |
+| `deviceName` | string | Device name |
+| `ipAddress` | string | IP address |
+| `isPlaying` | bool | Currently playing |
+| `isTrackLoaded` | bool | Track is loaded |
+| `isAtCue` | bool | Paused at cue point |
+| `isPlayingForwards` | bool | Playing forward |
+| `isPlayingBackwards` | bool | Playing backward |
+| `isMaster` | bool | Is tempo master |
+| `isSynced` | bool | Sync enabled |
+| `isOnAir` | bool | Fader is up (on air) |
+| `isBpmOnlySynced` | bool | BPM-only sync |
+| `bpm` | double | Track BPM |
+| `effectiveBpm` | double | BPM with pitch |
+| `pitchPercent` | double | Pitch adjustment % |
+| `beatWithinBar` | int | Position in bar (1-4) |
+| `beatNumber` | int | Beat position in track |
+| `trackSourcePlayer` | int | Source player number |
+| `rekordboxId` | int | rekordbox track ID |
+| `trackNumber` | int | Track number |
+| `timestamp` | uint64_t | Update timestamp |
+
+## Examples
+
+- **example-beatsync** - Beat-synchronized visual effects
+- **example-multidevice** - Multi-device monitoring
+- **example-osc** - OSC output for external applications
+- **example-statusmonitor** - Status monitor with event log
+- **example-cdjstatus** - CDJ status with VirtualCdj mode
+- **example-virtualcdj** - Full VirtualCdj status monitor
+
 ## Troubleshooting
 
 ### Port already in use
@@ -132,6 +233,12 @@ lsof -i :50000
 - Ensure PC and DJ equipment are on the same network/subnet
 - Check firewall settings for ports 50000-50002
 - Verify DJ Link is enabled on the equipment
+
+### VirtualCdj fails to start
+
+- Check that no other VirtualCdj instance is running
+- Try specifying a device number: `startVirtualCdj(5)` or `startVirtualCdj(6)`
+- Ensure ports 50000-50002 are available
 
 ## License
 

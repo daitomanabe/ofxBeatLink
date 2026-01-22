@@ -10,15 +10,20 @@ common:
 	ADDON_INCLUDES = src
 	ADDON_INCLUDES += libs/beat-link-cpp/include
 	ADDON_INCLUDES += libs/beat-link-cpp/src
+	ADDON_INCLUDES += libs/beat-link-cpp/src/generated
 	ADDON_INCLUDES += libs/asio-include
+	ADDON_INCLUDES += libs/stb-include
+	ADDON_INCLUDES += libs/miniz-include
 
 	# Exclude examples, tests, and python bindings from beat-link-cpp
 	ADDON_SOURCES_EXCLUDE = libs/beat-link-cpp/examples/%
 	ADDON_SOURCES_EXCLUDE += libs/beat-link-cpp/tests/%
 	ADDON_SOURCES_EXCLUDE += libs/beat-link-cpp/src/python_bindings.cpp
 
-	# Source files
+	# Source files - basic beat-link-cpp core (no VirtualCdj/advanced features)
+	# For full feature support, additional dependencies are required: sqlite3, utf8proc
 	ADDON_SOURCES = src/ofxBeatLink.cpp
+	# Core sources (basic functionality)
 	ADDON_SOURCES += libs/beat-link-cpp/src/Beat.cpp
 	ADDON_SOURCES += libs/beat-link-cpp/src/BeatFinder.cpp
 	ADDON_SOURCES += libs/beat-link-cpp/src/CdjStatus.cpp
@@ -26,10 +31,13 @@ common:
 	ADDON_SOURCES += libs/beat-link-cpp/src/DeviceFinder.cpp
 	ADDON_SOURCES += libs/beat-link-cpp/src/DeviceUpdate.cpp
 	ADDON_SOURCES += libs/beat-link-cpp/src/MixerStatus.cpp
+	ADDON_SOURCES += libs/beat-link-cpp/src/PrecisePosition.cpp
 	ADDON_SOURCES += libs/beat-link-cpp/src/Util.cpp
 
-	# C++ flags (Asio standalone mode, C++20 required)
-	ADDON_CPPFLAGS = -DASIO_STANDALONE -std=c++20
+	# C++ flags (Asio standalone mode, C++17 required)
+	# BEATLINK_NO_TIMEFINDER: Disable TimeFinder to avoid complex dependencies
+	# BEATLINK_NO_VIRTUALCDJ: Disable VirtualCdj to avoid complex dependencies (sqlite3, utf8proc)
+	ADDON_CPPFLAGS = -DASIO_STANDALONE -DBEATLINK_NO_TIMEFINDER -DBEATLINK_NO_VIRTUALCDJ -std=c++17
 
 osx:
 	# macOS specific settings
