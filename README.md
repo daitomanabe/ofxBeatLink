@@ -210,12 +210,17 @@ Detailed device status (requires VirtualCdj mode).
 
 ## Examples
 
+- **example-basic** - Basic passive listener
 - **example-beatsync** - Beat-synchronized visual effects
 - **example-multidevice** - Multi-device monitoring
 - **example-osc** - OSC output for external applications
 - **example-statusmonitor** - Status monitor with event log
 - **example-cdjstatus** - CDJ status with VirtualCdj mode
 - **example-virtualcdj** - Full VirtualCdj status monitor
+- **example-bpm-display** - Large BPM display for DJ booth
+- **example-timeline** - Beat/BPM history timeline visualization
+- **example-waveform** - Waveform display with playhead
+- **example-ableton-link** - Ableton Link bridge (requires ofxAbletonLink)
 
 ## Troubleshooting
 
