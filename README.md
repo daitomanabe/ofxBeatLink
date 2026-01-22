@@ -225,6 +225,7 @@ Detailed device status (requires VirtualCdj mode).
 - **example-timeline** - Beat/BPM history timeline visualization
 - **example-waveform** - Waveform display with playhead
 - **example-metronome** - Visual metronome synced to DJ Link
+- **example-comprehensive** - Full-featured 4-CDJ monitor with waveforms, cue points, phrases, beat history
 - **example-ableton-link** - Ableton Link bridge (requires ofxAbletonLink)
 
 ### rekordbox Database Examples (crate-digger-cpp)
