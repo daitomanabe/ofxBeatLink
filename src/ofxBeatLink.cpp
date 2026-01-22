@@ -1,9 +1,11 @@
 #include "ofxBeatLink.h"
 
-ofxBeatLink::ofxBeatLink() {
-}
+ofxBeatLink::ofxBeatLink() = default;
 
 ofxBeatLink::~ofxBeatLink() {
+#if OFX_BEATLINK_HAS_VIRTUALCDJ
+    stopVirtualCdj();
+#endif
     stop();
 }
 
@@ -65,6 +67,158 @@ void ofxBeatLink::stop() {
     ofLogNotice("ofxBeatLink") << "Stopped listening for DJ Link devices";
 }
 
+#if OFX_BEATLINK_HAS_VIRTUALCDJ
+// ========== VirtualCdj Methods ==========
+
+bool ofxBeatLink::startVirtualCdj(int deviceNumber) {
+    if (virtualCdjRunning_) {
+        return true;
+    }
+
+    auto& virtualCdj = beatlink::VirtualCdj::getInstance();
+
+    // Set device name before starting
+    virtualCdj.setDeviceName(virtualCdjName_);
+
+    // Register listeners using callback wrapper classes
+    deviceUpdateListener_ = std::make_shared<beatlink::DeviceUpdateCallbacks>(
+        [this](const beatlink::DeviceUpdate& update) {
+            // Handle CdjStatus updates directly in callback
+            const auto* cdjStatus = dynamic_cast<const beatlink::CdjStatus*>(&update);
+            if (cdjStatus) {
+                auto ofStatus = convertCdjStatus(*cdjStatus);
+                {
+                    std::lock_guard<std::mutex> lock(latestStatusesMutex_);
+                    latestStatuses_[ofStatus.deviceNumber] = ofStatus;
+                }
+                {
+                    std::lock_guard<std::mutex> lock(deviceUpdateQueueMutex_);
+                    deviceUpdateQueue_.push(ofStatus);
+                }
+            }
+        }
+    );
+    virtualCdj.addUpdateListener(deviceUpdateListener_);
+
+    masterListener_ = std::make_shared<beatlink::MasterListenerCallbacks>(
+        [this](const beatlink::DeviceUpdate* update) {
+            if (update) {
+                const auto* cdjStatus = dynamic_cast<const beatlink::CdjStatus*>(update);
+                if (cdjStatus) {
+                    auto ofStatus = convertCdjStatus(*cdjStatus);
+                    std::lock_guard<std::mutex> lock(masterChangedQueueMutex_);
+                    masterChangedQueue_.push(ofStatus);
+                }
+            }
+        },
+        [](double) {},  // tempo changed - not used
+        [](const beatlink::Beat&) {}  // new beat - not used
+    );
+    virtualCdj.addMasterListener(masterListener_);
+
+    // Start VirtualCdj
+    bool started = false;
+    if (deviceNumber == 0) {
+        started = virtualCdj.start();
+    } else {
+        started = virtualCdj.start(static_cast<uint8_t>(deviceNumber));
+    }
+
+    if (!started) {
+        ofLogError("ofxBeatLink") << "Failed to start VirtualCdj";
+        virtualCdj.removeUpdateListener(deviceUpdateListener_);
+        virtualCdj.removeMasterListener(masterListener_);
+        deviceUpdateListener_.reset();
+        masterListener_.reset();
+        return false;
+    }
+
+    virtualCdjRunning_ = true;
+    ofLogNotice("ofxBeatLink") << "VirtualCdj started as device #" << static_cast<int>(virtualCdj.getDeviceNumber());
+    return true;
+}
+
+void ofxBeatLink::stopVirtualCdj() {
+    if (!virtualCdjRunning_) {
+        return;
+    }
+
+    auto& virtualCdj = beatlink::VirtualCdj::getInstance();
+
+    if (deviceUpdateListener_) {
+        virtualCdj.removeUpdateListener(deviceUpdateListener_);
+        deviceUpdateListener_.reset();
+    }
+    if (masterListener_) {
+        virtualCdj.removeMasterListener(masterListener_);
+        masterListener_.reset();
+    }
+
+    virtualCdj.stop();
+    virtualCdjRunning_ = false;
+
+    ofLogNotice("ofxBeatLink") << "VirtualCdj stopped";
+}
+
+bool ofxBeatLink::isVirtualCdjRunning() const {
+    return virtualCdjRunning_;
+}
+
+int ofxBeatLink::getVirtualCdjDeviceNumber() const {
+    if (!virtualCdjRunning_) {
+        return 0;
+    }
+    return beatlink::VirtualCdj::getInstance().getDeviceNumber();
+}
+
+void ofxBeatLink::setVirtualCdjDeviceName(const std::string& name) {
+    virtualCdjName_ = name;
+}
+
+std::optional<ofxBeatLinkCdjStatus> ofxBeatLink::getTempoMaster() {
+    if (!virtualCdjRunning_) {
+        return std::nullopt;
+    }
+
+    auto master = beatlink::VirtualCdj::getInstance().getTempoMaster();
+    if (!master) {
+        return std::nullopt;
+    }
+
+    auto* cdjStatus = dynamic_cast<beatlink::CdjStatus*>(master.get());
+    if (!cdjStatus) {
+        return std::nullopt;
+    }
+
+    return convertCdjStatus(*cdjStatus);
+}
+
+double ofxBeatLink::getMasterTempo() const {
+    if (!virtualCdjRunning_) {
+        return 0.0;
+    }
+    return beatlink::VirtualCdj::getInstance().getMasterTempo();
+}
+
+std::vector<ofxBeatLinkCdjStatus> ofxBeatLink::getCurrentStatuses() {
+    std::lock_guard<std::mutex> lock(latestStatusesMutex_);
+    std::vector<ofxBeatLinkCdjStatus> result;
+    result.reserve(latestStatuses_.size());
+    for (const auto& [deviceNum, status] : latestStatuses_) {
+        result.push_back(status);
+    }
+    return result;
+}
+
+std::optional<ofxBeatLinkCdjStatus> ofxBeatLink::getStatusFor(int deviceNumber) {
+    std::lock_guard<std::mutex> lock(latestStatusesMutex_);
+    if (auto it = latestStatuses_.find(deviceNumber); it != latestStatuses_.end()) {
+        return it->second;
+    }
+    return std::nullopt;
+}
+#endif // OFX_BEATLINK_HAS_VIRTUALCDJ
+
 bool ofxBeatLink::isRunning() const {
     return running_;
 }
@@ -99,6 +253,28 @@ void ofxBeatLink::update() {
             ofNotifyEvent(deviceLostEvent, device);
         }
     }
+
+#if OFX_BEATLINK_HAS_VIRTUALCDJ
+    // Process device update events (VirtualCdj mode)
+    {
+        std::lock_guard<std::mutex> lock(deviceUpdateQueueMutex_);
+        while (!deviceUpdateQueue_.empty()) {
+            auto status = deviceUpdateQueue_.front();
+            deviceUpdateQueue_.pop();
+            ofNotifyEvent(deviceUpdateEvent, status);
+        }
+    }
+
+    // Process master changed events (VirtualCdj mode)
+    {
+        std::lock_guard<std::mutex> lock(masterChangedQueueMutex_);
+        while (!masterChangedQueue_.empty()) {
+            auto status = masterChangedQueue_.front();
+            masterChangedQueue_.pop();
+            ofNotifyEvent(masterChangedEvent, status);
+        }
+    }
+#endif
 }
 
 std::vector<ofxBeatLinkDevice> ofxBeatLink::getCurrentDevices() {
@@ -188,3 +364,41 @@ ofxBeatLinkDevice ofxBeatLink::convertDevice(const beatlink::DeviceAnnouncement&
     result.isXdjAz = device.isXdjAz();
     return result;
 }
+
+#if OFX_BEATLINK_HAS_VIRTUALCDJ
+ofxBeatLinkCdjStatus ofxBeatLink::convertCdjStatus(const beatlink::CdjStatus& status) {
+    ofxBeatLinkCdjStatus result;
+    result.deviceNumber = status.getDeviceNumber();
+    result.deviceName = status.getDeviceName();
+    result.ipAddress = status.getAddress().to_string();
+
+    // Playback state
+    result.isPlaying = status.isPlaying();
+    result.isTrackLoaded = status.isTrackLoaded();
+    result.isAtCue = status.isAtCue();
+    result.isPlayingForwards = status.isPlayingForwards();
+    result.isPlayingBackwards = status.isPlayingBackwards();
+
+    // Status flags
+    result.isMaster = status.isTempoMaster();
+    result.isSynced = status.isSynced();
+    result.isOnAir = status.isOnAir();
+    result.isBpmOnlySynced = status.isBpmOnlySynced();
+
+    // Tempo info
+    result.bpm = status.getBpm() / 100.0;
+    result.effectiveBpm = status.getEffectiveTempo();
+    result.pitchPercent = beatlink::Util::pitchToPercentage(status.getPitch());
+    result.beatWithinBar = status.getBeatWithinBar();
+    result.beatNumber = status.getBeatNumber();
+
+    // Track source
+    result.trackSourcePlayer = status.getTrackSourcePlayer();
+    result.rekordboxId = status.getRekordboxId();
+    result.trackNumber = status.getTrackNumber();
+
+    result.timestamp = ofGetElapsedTimeMillis();
+    return result;
+}
+#endif
+
