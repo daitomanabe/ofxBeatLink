@@ -1,6 +1,5 @@
 #include "ofApp.h"
 #include <algorithm>
-#include <ranges>
 
 void ofApp::setup() {
     ofSetFrameRate(60);
@@ -11,9 +10,9 @@ void ofApp::setup() {
     ofAddListener(beatLink.deviceFoundEvent, this, &ofApp::onDeviceFound);
     ofAddListener(beatLink.deviceLostEvent, this, &ofApp::onDeviceLost);
 
-    if (beatLink.start()) [[likely]] {
+    if (beatLink.start()) {
         addLog("Started monitoring on ports 50000/50001", ofColor(80, 200, 120));
-    } else [[unlikely]] {
+    } else {
         addLog("ERROR: Failed to start", ofColor(255, 80, 80));
     }
 }
@@ -23,13 +22,14 @@ void ofApp::update() {
 
     const auto now = ofGetElapsedTimeMillis();
 
-    // Update device states using C++20 ranges with structured bindings
-    for (auto& [deviceNum, status] : devices) {
+    // Update device states
+    for (auto& kv : devices) {
+        auto& status = kv.second;
         // Decay beat flash
         status.beatAlpha *= 0.9f;
 
         // Update playing status based on beat activity
-        if (status.lastBeat) [[likely]] {
+        if (status.lastBeat) {
             status.isPlaying = (now - status.lastUpdateTime) < PLAYING_TIMEOUT_MS;
         }
     }
@@ -50,18 +50,16 @@ void ofApp::draw() {
     constexpr auto gapX = 30.0f;
     constexpr auto gapY = 20.0f;
 
-    // C++20 views::iota for iteration
-    for (int slot : std::views::iota(0, MAX_DEVICES)) {
+    for (int slot = 0; slot < MAX_DEVICES; ++slot) {
         const auto col = slot % 2;
         const auto row = slot / 2;
         const auto x = marginX + static_cast<float>(col) * (PANEL_WIDTH + gapX);
         const auto y = marginY + static_cast<float>(row) * (PANEL_HEIGHT + gapY);
         const auto deviceNum = slot + 1;
 
-        // C++20 contains() for map lookup
-        if (devices.contains(deviceNum)) [[likely]] {
+        if (devices.find(deviceNum) != devices.end()) {
             drawDevicePanel(devices.at(deviceNum), x, y, PANEL_WIDTH, PANEL_HEIGHT);
-        } else [[unlikely]] {
+        } else {
             drawEmptySlot(deviceNum, x, y, PANEL_WIDTH, PANEL_HEIGHT);
         }
     }
@@ -79,13 +77,12 @@ void ofApp::draw() {
     ofDrawBitmapString("Event Log:", 35, logY + 30);
 
     auto logLineY = logY + 55;
-    // C++20 structured bindings in range-for
-    for (const auto& [timestamp, message, color] : eventLog) {
+    for (const auto& entry : eventLog) {
         ofSetColor(80);
-        ofDrawBitmapString(timestamp, 35, logLineY);
+        ofDrawBitmapString(entry.timestamp, 35, logLineY);
 
-        ofSetColor(color);
-        ofDrawBitmapString(message, 130, logLineY);
+        ofSetColor(entry.color);
+        ofDrawBitmapString(entry.message, 130, logLineY);
 
         logLineY += 17;
     }
@@ -112,9 +109,9 @@ void ofApp::drawDevicePanel(const DeviceStatus& status, float x, float y, float 
     ofDrawRectRounded(x, y, width, height, 8);
 
     // Border
-    if (status.isPlaying) [[likely]] {
+    if (status.isPlaying) {
         ofSetColor(80, 200, 120, static_cast<int>(150 + status.beatAlpha * 105));
-    } else [[unlikely]] {
+    } else {
         ofSetColor(60);
     }
     ofNoFill();
@@ -166,7 +163,7 @@ void ofApp::drawDevicePanel(const DeviceStatus& status, float x, float y, float 
     py += 35;
 
     // BPM info
-    if (status.lastBeat) [[likely]] {
+    if (status.lastBeat) {
         const auto& beat = *status.lastBeat;
 
         ofSetColor(100, 255, 150);
@@ -190,7 +187,7 @@ void ofApp::drawDevicePanel(const DeviceStatus& status, float x, float y, float 
         ofSetColor(80);
         ofDrawBitmapString("Next Beat: " + ofToString(beat.nextBeatMs) + "ms", px + 180, py + 15);
         ofDrawBitmapString("Next Bar: " + ofToString(beat.nextBarMs) + "ms", px + 340, py + 15);
-    } else [[unlikely]] {
+    } else {
         ofSetColor(60);
         ofDrawBitmapString("Waiting for beat data...", px, py);
     }
@@ -200,8 +197,7 @@ void ofApp::drawBeatIndicators(float x, float y, int currentBeat, float alpha) {
     constexpr auto size = 28.0f;
     constexpr auto gap = 8.0f;
 
-    // C++20 views::iota for beat numbers
-    for (int i : std::views::iota(1, 5)) {
+    for (int i = 1; i <= 4; ++i) {
         const auto bx = x + static_cast<float>(i - 1) * (size + gap);
         const auto active = (i == currentBeat);
 
@@ -209,9 +205,14 @@ void ofApp::drawBeatIndicators(float x, float y, int currentBeat, float alpha) {
         ofSetColor(40);
         ofDrawRectRounded(bx, y, size, size, 4);
 
-        // Fill with C++20 structured binding for color
+        // Fill with color
         if (active) {
-            const auto [r, g, b] = (i == 1) ? std::tuple{255, 80, 80} : std::tuple{80, 200, 120};
+            int r, g, b;
+            if (i == 1) {
+                r = 255; g = 80; b = 80;
+            } else {
+                r = 80; g = 200; b = 120;
+            }
             ofSetColor(r, g, b, static_cast<int>(150 + alpha * 105));
             ofDrawRectRounded(bx + 2, y + 2, size - 4, size - 4, 3);
         }
@@ -230,17 +231,16 @@ void ofApp::exit() {
 }
 
 void ofApp::keyPressed(int key) {
-    if (key == 'r' || key == 'R') [[unlikely]] {
+    if (key == 'r' || key == 'R') {
         auto currentDevices = beatLink.getCurrentDevices();
         addLog("Refreshed: " + ofToString(currentDevices.size()) + " devices");
-    } else if (key == 'q' || key == 'Q') [[unlikely]] {
+    } else if (key == 'q' || key == 'Q') {
         ofExit();
     }
 }
 
 void ofApp::onBeat(ofxBeatLinkBeat& beat) {
-    // C++20 contains() check
-    if (devices.contains(beat.deviceNumber)) [[likely]] {
+    if (devices.find(beat.deviceNumber) != devices.end()) {
         auto& status = devices[beat.deviceNumber];
         const auto wasPlaying = status.isPlaying;
 
@@ -250,7 +250,7 @@ void ofApp::onBeat(ofxBeatLinkBeat& beat) {
         status.isPlaying = true;
 
         // Log state changes
-        if (!wasPlaying) [[unlikely]] {
+        if (!wasPlaying) {
             addLog(status.info.deviceName + " #" + ofToString(beat.deviceNumber) + " started playing",
                    ofColor(80, 200, 120));
         }
@@ -258,11 +258,10 @@ void ofApp::onBeat(ofxBeatLinkBeat& beat) {
 }
 
 void ofApp::onDeviceFound(ofxBeatLinkDevice& device) {
-    // C++20 designated initializers
-    devices[device.deviceNumber] = DeviceStatus{
-        .info = device,
-        .lastUpdateTime = ofGetElapsedTimeMillis()
-    };
+    DeviceStatus status;
+    status.info = device;
+    status.lastUpdateTime = ofGetElapsedTimeMillis();
+    devices[device.deviceNumber] = status;
 
     addLog(device.deviceName + " #" + ofToString(device.deviceNumber) +
            " connected (" + device.ipAddress + ")", ofColor(100, 200, 255));
@@ -275,12 +274,11 @@ void ofApp::onDeviceLost(ofxBeatLinkDevice& device) {
 }
 
 void ofApp::addLog(std::string_view msg, const ofColor& color) {
-    // C++20 designated initializers
-    eventLog.emplace_front(LogEntry{
-        .timestamp = ofGetTimestampString("%H:%M:%S"),
-        .message = std::string(msg),
-        .color = color
-    });
+    LogEntry entry;
+    entry.timestamp = ofGetTimestampString("%H:%M:%S");
+    entry.message = std::string(msg);
+    entry.color = color;
+    eventLog.emplace_front(entry);
 
     // Keep only MAX_LOG entries
     while (eventLog.size() > MAX_LOG) {

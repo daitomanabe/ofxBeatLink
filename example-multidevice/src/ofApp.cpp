@@ -1,6 +1,5 @@
 #include "ofApp.h"
 #include <algorithm>
-#include <ranges>
 
 void ofApp::setup() {
     ofSetFrameRate(60);
@@ -11,9 +10,9 @@ void ofApp::setup() {
     ofAddListener(beatLink.deviceFoundEvent, this, &ofApp::onDeviceFound);
     ofAddListener(beatLink.deviceLostEvent, this, &ofApp::onDeviceLost);
 
-    if (beatLink.start()) [[likely]] {
+    if (beatLink.start()) {
         addLog("Started listening on ports 50000/50001");
-    } else [[unlikely]] {
+    } else {
         addLog("ERROR: Failed to start");
     }
 }
@@ -21,9 +20,9 @@ void ofApp::setup() {
 void ofApp::update() {
     beatLink.update();
 
-    // Decay animations using C++20 ranges with structured bindings
-    for (auto& [deviceNum, state] : devices) {
-        state.beatAlpha *= 0.9f;
+    // Decay animations
+    for (auto& kv : devices) {
+        kv.second.beatAlpha *= 0.9f;
     }
 }
 
@@ -41,18 +40,17 @@ void ofApp::draw() {
     constexpr auto gapX = 30.0f;
     constexpr auto gapY = 20.0f;
 
-    // Draw 4 slots using C++20 views::iota
-    for (int slot : std::views::iota(0, MAX_DEVICES)) {
+    // Draw 4 slots
+    for (int slot = 0; slot < MAX_DEVICES; ++slot) {
         const auto col = slot % 2;
         const auto row = slot / 2;
         const auto x = marginX + static_cast<float>(col) * (PANEL_WIDTH + gapX);
         const auto y = marginY + static_cast<float>(row) * (PANEL_HEIGHT + gapY);
         const auto deviceNum = slot + 1;
 
-        // C++20 contains() for map lookup
-        if (devices.contains(deviceNum)) [[likely]] {
+        if (devices.find(deviceNum) != devices.end()) {
             drawDevicePanel(devices.at(deviceNum), x, y, PANEL_WIDTH, PANEL_HEIGHT);
-        } else [[unlikely]] {
+        } else {
             drawEmptySlot(deviceNum, x, y, PANEL_WIDTH, PANEL_HEIGHT);
         }
     }
@@ -97,9 +95,9 @@ void ofApp::drawDevicePanel(const DeviceState& state, float x, float y, float wi
     ofDrawRectRounded(x, y, width, height, 8);
 
     // Border
-    if (state.beatAlpha > 0.1f) [[likely]] {
+    if (state.beatAlpha > 0.1f) {
         ofSetColor(100, 200, 255, static_cast<int>(100 + state.beatAlpha * 155));
-    } else [[unlikely]] {
+    } else {
         ofSetColor(70);
     }
     ofNoFill();
@@ -121,7 +119,7 @@ void ofApp::drawDevicePanel(const DeviceState& state, float x, float y, float wi
 
     py += 30;
 
-    if (state.lastBeat) [[likely]] {
+    if (state.lastBeat) {
         const auto& beat = *state.lastBeat;
 
         // BPM (large)
@@ -141,17 +139,21 @@ void ofApp::drawDevicePanel(const DeviceState& state, float x, float y, float wi
 
         py += 30;
 
-        // Beat indicators using C++20 views::iota
+        // Beat indicators
         auto indX = px;
         constexpr auto size = 25.0f;
         constexpr auto gap = 10.0f;
 
-        for (int i : std::views::iota(1, 5)) {
+        for (int i = 1; i <= 4; ++i) {
             const auto isActive = (i == beat.beatWithinBar);
 
             if (isActive) {
-                // C++20 ternary with structured binding alternative
-                const auto [r, g, b] = (i == 1) ? std::tuple{255, 80, 80} : std::tuple{80, 255, 120};
+                int r, g, b;
+                if (i == 1) {
+                    r = 255; g = 80; b = 80;
+                } else {
+                    r = 80; g = 255; b = 120;
+                }
                 ofSetColor(r, g, b, static_cast<int>(150 + state.beatAlpha * 105));
                 ofDrawRectRounded(indX, py, size, size, 4);
             } else {
@@ -172,7 +174,7 @@ void ofApp::drawDevicePanel(const DeviceState& state, float x, float y, float wi
         ofDrawBitmapString("Next Beat: " + ofToString(beat.nextBeatMs) + "ms", px, py);
         ofDrawBitmapString("Next Bar: " + ofToString(beat.nextBarMs) + "ms", px + 180, py);
 
-    } else [[unlikely]] {
+    } else {
         ofSetColor(60);
         ofDrawBitmapString("Waiting for beat data...", px, py);
     }
@@ -186,8 +188,7 @@ void ofApp::exit() {
 }
 
 void ofApp::onBeat(ofxBeatLinkBeat& beat) {
-    // C++20 contains() check
-    if (devices.contains(beat.deviceNumber)) [[likely]] {
+    if (devices.find(beat.deviceNumber) != devices.end()) {
         auto& state = devices[beat.deviceNumber];
         state.lastBeat = beat;
         state.beatAlpha = 1.0f;
@@ -195,8 +196,9 @@ void ofApp::onBeat(ofxBeatLinkBeat& beat) {
 }
 
 void ofApp::onDeviceFound(ofxBeatLinkDevice& device) {
-    // C++20 designated initializers
-    devices[device.deviceNumber] = DeviceState{.info = device};
+    DeviceState state;
+    state.info = device;
+    devices[device.deviceNumber] = state;
 
     addLog("Found: " + device.deviceName + " #" + ofToString(device.deviceNumber) +
            " (" + device.ipAddress + ")");
@@ -211,7 +213,6 @@ void ofApp::addLog(std::string_view msg) {
     auto timestamp = ofGetTimestampString("%H:%M:%S");
     logMessages.emplace_back("[" + timestamp + "] " + std::string(msg));
 
-    // C++20 std::erase_if alternative: keep only MAX_LOG entries
     while (logMessages.size() > MAX_LOG) {
         logMessages.pop_front();
     }

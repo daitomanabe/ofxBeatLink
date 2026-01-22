@@ -1,6 +1,5 @@
 #include "ofApp.h"
 #include <algorithm>
-#include <ranges>
 
 void ofApp::setup() {
     ofSetFrameRate(60);
@@ -14,9 +13,9 @@ void ofApp::setup() {
     ofAddListener(beatLink.deviceFoundEvent, this, &ofApp::onDeviceFound);
     ofAddListener(beatLink.deviceLostEvent, this, &ofApp::onDeviceLost);
 
-    if (beatLink.start()) [[likely]] {
+    if (beatLink.start()) {
         addOscLog("/status", "Started listening");
-    } else [[unlikely]] {
+    } else {
         addOscLog("/error", "Failed to start");
     }
 
@@ -26,15 +25,18 @@ void ofApp::setup() {
 void ofApp::update() {
     beatLink.update();
 
-    // Update messages per second (C++20 [[likely]]/[[unlikely]])
-    if (auto now = ofGetElapsedTimef(); now - lastSecondTime >= 1.0f) [[unlikely]] {
+    // Update messages per second
+    auto now = ofGetElapsedTimef();
+    if (now - lastSecondTime >= 1.0f) {
         messagesPerSecond = static_cast<float>(messageCountLastSecond);
         messageCountLastSecond = 0;
         lastSecondTime = now;
     }
 
-    // Decay log entry alphas using C++20 ranges
-    std::ranges::for_each(oscLog, [](auto& entry) { entry.alpha *= 0.995f; });
+    // Decay log entry alphas
+    for (auto& entry : oscLog) {
+        entry.alpha *= 0.995f;
+    }
 }
 
 void ofApp::draw() {
@@ -94,15 +96,15 @@ void ofApp::draw() {
     ofDrawBitmapString("OSC Monitor:", 35, y);
     y += 25;
 
-    // Log entries using C++20 structured bindings
-    for (const auto& [address, args, alpha] : oscLog) {
+    // Log entries
+    for (const auto& entry : oscLog) {
         // Address
-        ofSetColor(100, 200, 255, static_cast<int>(50 + alpha * 205));
-        ofDrawBitmapString(address, 35, y);
+        ofSetColor(100, 200, 255, static_cast<int>(50 + entry.alpha * 205));
+        ofDrawBitmapString(entry.address, 35, y);
 
         // Arguments
-        ofSetColor(200, 200, 200, static_cast<int>(50 + alpha * 205));
-        ofDrawBitmapString(args, 280, y);
+        ofSetColor(200, 200, 200, static_cast<int>(50 + entry.alpha * 205));
+        ofDrawBitmapString(entry.args, 280, y);
 
         y += 16;
     }
@@ -120,7 +122,7 @@ void ofApp::exit() {
 }
 
 void ofApp::keyPressed(int key) {
-    if (key == 'q' || key == 'Q') [[unlikely]] {
+    if (key == 'q' || key == 'Q') {
         ofExit();
     }
 }
@@ -182,12 +184,11 @@ void ofApp::onDeviceLost(ofxBeatLinkDevice& device) {
 }
 
 void ofApp::addOscLog(std::string_view address, std::string_view args) {
-    // C++20 designated initializers with emplace
-    oscLog.emplace_front(OscLogEntry{
-        .address = std::string(address),
-        .args = std::string(args),
-        .alpha = 1.0f
-    });
+    OscLogEntry entry;
+    entry.address = std::string(address);
+    entry.args = std::string(args);
+    entry.alpha = 1.0f;
+    oscLog.emplace_front(entry);
 
     // Keep only MAX_OSC_LOG entries
     while (oscLog.size() > MAX_OSC_LOG) {
