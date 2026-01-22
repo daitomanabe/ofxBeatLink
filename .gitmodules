@@ -1,3 +1,9 @@
 [submodule "libs/beat-link-cpp"]
 	path = libs/beat-link-cpp
 	url = https://github.com/daitomanabe/beat-link-cpp.git
+[submodule "libs/stb-include"]
+	path = libs/stb-include
+	url = https://github.com/nothings/stb.git
+[submodule "libs/miniz-include"]
+	path = libs/miniz-include
+	url = https://github.com/richgel999/miniz.git
