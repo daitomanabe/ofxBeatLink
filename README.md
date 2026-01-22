@@ -9,6 +9,9 @@ openFrameworks addon for Pioneer DJ Link protocol. Wraps [beat-link-cpp](https:/
 - VirtualCdj mode for detailed device status (playing, master, sync, on-air)
 - Thread-safe event delivery to main thread
 - Simple openFrameworks-style API with ofEvent
+- rekordbox database parsing via [crate-digger-cpp](https://github.com/daitomanabe/crate-digger-cpp)
+  - Parse export.pdb database files
+  - Read cue points, beat grids, waveforms, song structure from ANLZ files
 ## Requirements
 
 - openFrameworks 0.12.0+
@@ -210,6 +213,7 @@ Detailed device status (requires VirtualCdj mode).
 
 ## Examples
 
+### DJ Link Examples
 - **example-basic** - Basic passive listener
 - **example-beatsync** - Beat-synchronized visual effects
 - **example-multidevice** - Multi-device monitoring
@@ -221,6 +225,11 @@ Detailed device status (requires VirtualCdj mode).
 - **example-timeline** - Beat/BPM history timeline visualization
 - **example-waveform** - Waveform display with playhead
 - **example-ableton-link** - Ableton Link bridge (requires ofxAbletonLink)
+
+### rekordbox Database Examples (crate-digger-cpp)
+- **example-rekordbox-browser** - Browse rekordbox export.pdb database (tracks, artists, albums)
+- **example-cue-points** - Display cue points and hot cues from ANLZ files
+- **example-song-structure** - Visualize phrase analysis (Intro, Verse, Chorus, etc.)
 
 ## Troubleshooting
 
@@ -251,5 +260,7 @@ EPL-2.0 (same as beat-link-cpp)
 
 ## Credits
 
-- [beat-link-cpp](https://github.com/daitomanabe/beat-link-cpp) - C++ implementation
+- [beat-link-cpp](https://github.com/daitomanabe/beat-link-cpp) - C++ DJ Link implementation
+- [crate-digger-cpp](https://github.com/daitomanabe/crate-digger-cpp) - C++ rekordbox database parser
 - [Deep Symmetry Beat Link](https://github.com/Deep-Symmetry/beat-link) - Original Java library
+- [Deep Symmetry Crate Digger](https://github.com/Deep-Symmetry/crate-digger) - Original Java library

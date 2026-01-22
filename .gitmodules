@@ -7,3 +7,6 @@
 [submodule "libs/miniz-include"]
 	path = libs/miniz-include
 	url = https://github.com/richgel999/miniz.git
+[submodule "libs/crate-digger-cpp"]
+	path = libs/crate-digger-cpp
+	url = https://github.com/daitomanabe/crate-digger-cpp.git

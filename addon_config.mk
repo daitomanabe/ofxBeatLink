@@ -14,11 +14,16 @@ common:
 	ADDON_INCLUDES += libs/asio-include
 	ADDON_INCLUDES += libs/stb-include
 	ADDON_INCLUDES += libs/miniz-include
+	# crate-digger-cpp includes
+	ADDON_INCLUDES += libs/crate-digger-cpp/include
 
-	# Exclude examples, tests, and python bindings from beat-link-cpp
+	# Exclude examples, tests, and python bindings
 	ADDON_SOURCES_EXCLUDE = libs/beat-link-cpp/examples/%
 	ADDON_SOURCES_EXCLUDE += libs/beat-link-cpp/tests/%
 	ADDON_SOURCES_EXCLUDE += libs/beat-link-cpp/src/python_bindings.cpp
+	ADDON_SOURCES_EXCLUDE += libs/crate-digger-cpp/tests/%
+	ADDON_SOURCES_EXCLUDE += libs/crate-digger-cpp/src/cli/%
+	ADDON_SOURCES_EXCLUDE += libs/crate-digger-cpp/src/python/%
 
 	# Source files - basic beat-link-cpp core (no VirtualCdj/advanced features)
 	# For full feature support, additional dependencies are required: sqlite3, utf8proc
@@ -33,6 +38,13 @@ common:
 	ADDON_SOURCES += libs/beat-link-cpp/src/MixerStatus.cpp
 	ADDON_SOURCES += libs/beat-link-cpp/src/PrecisePosition.cpp
 	ADDON_SOURCES += libs/beat-link-cpp/src/Util.cpp
+	# crate-digger-cpp sources (rekordbox database parsing)
+	ADDON_SOURCES += libs/crate-digger-cpp/src/core/api_schema.cpp
+	ADDON_SOURCES += libs/crate-digger-cpp/src/core/database.cpp
+	ADDON_SOURCES += libs/crate-digger-cpp/src/core/database_util.cpp
+	ADDON_SOURCES += libs/crate-digger-cpp/src/core/logging.cpp
+	ADDON_SOURCES += libs/crate-digger-cpp/src/core/rekordbox_anlz.cpp
+	ADDON_SOURCES += libs/crate-digger-cpp/src/core/rekordbox_pdb.cpp
 
 	# C++ flags (Asio standalone mode, C++17 required)
 	# BEATLINK_NO_TIMEFINDER: Disable TimeFinder to avoid complex dependencies
