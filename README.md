@@ -224,6 +224,7 @@ Detailed device status (requires VirtualCdj mode).
 - **example-bpm-display** - Large BPM display for DJ booth
 - **example-timeline** - Beat/BPM history timeline visualization
 - **example-waveform** - Waveform display with playhead
+- **example-metronome** - Visual metronome synced to DJ Link
 - **example-ableton-link** - Ableton Link bridge (requires ofxAbletonLink)
 
 ### rekordbox Database Examples (crate-digger-cpp)
@@ -237,6 +238,9 @@ Detailed device status (requires VirtualCdj mode).
 - **example-tag-browser** - Browse tags and categories (exportExt.pdb)
 - **example-bpm-search** - Search tracks by BPM range with histogram
 - **example-key-wheel** - Circle of Fifths key visualization for harmonic mixing
+- **example-artwork** - Album artwork display from rekordbox
+- **example-track-detail** - Detailed track information viewer
+- **example-loop-viewer** - Saved loops visualization
 
 ## Troubleshooting
 
