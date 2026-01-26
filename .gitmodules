@@ -1,6 +1,7 @@
 [submodule "libs/beat-link-cpp"]
 	path = libs/beat-link-cpp
-	url = https://github.com/daitomanabe/beat-link-cpp.git
+	url = https://github.com/yutaokuyama/beat-link-cpp.git
+	branch = windows-msvc-fix
 [submodule "libs/stb-include"]
 	path = libs/stb-include
 	url = https://github.com/nothings/stb.git
@@ -9,4 +10,4 @@
 	url = https://github.com/richgel999/miniz.git
 [submodule "libs/crate-digger-cpp"]
 	path = libs/crate-digger-cpp
-	url = https://github.com/daitomanabe/crate-digger-cpp.git
+	url = https://github.com/yutaokuyama/crate-digger-cpp.git
