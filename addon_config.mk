@@ -73,5 +73,18 @@ msys2:
 	ADDON_LDFLAGS = -lws2_32
 
 vs:
-	# Visual Studio settings
+	# Visual Studio settings - link prebuilt libraries
+	ADDON_FRAMEWORKS =
+	# Additional includes for dependencies (from CMake build)
+	ADDON_INCLUDES += libs/beat-link-cpp/build_vs/_deps/fmt-src/include
+	ADDON_INCLUDES += libs/beat-link-cpp/build_vs/_deps/utf8proc-src
+	ADDON_INCLUDES += libs/beat-link-cpp/build_vs/_deps/kaitai_runtime-src
+	# Link prebuilt libraries (x64 Release)
+	ADDON_LIBS = libs/prebuilt/vs/x64/Release/beatlink.lib
+	ADDON_LIBS += libs/prebuilt/vs/x64/Release/sqlite3.lib
+	ADDON_LIBS += libs/prebuilt/vs/x64/Release/fmt.lib
+	ADDON_LIBS += libs/prebuilt/vs/x64/Release/kaitai_struct_cpp_stl_runtime.lib
+	ADDON_LIBS += libs/prebuilt/vs/x64/Release/miniz.lib
+	ADDON_LIBS += libs/prebuilt/vs/x64/Release/utf8proc_static.lib
+	# Winsock2 for network operations
 	ADDON_LDFLAGS = ws2_32.lib
