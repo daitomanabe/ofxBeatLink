@@ -1,1 +1,4 @@
 ofxBeatLink
+ofxOsc
+ofxPubSubOsc
+ofxSpout
