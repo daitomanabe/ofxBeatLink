@@ -132,14 +132,11 @@ void ofApp::drawToFbo() {
     const float screenHeight = LayoutConfig::SCREEN_HEIGHT;
     const float padding = LayoutConfig::PADDING;
     
-    // Get device numbers (only playing devices)
+    // Get device numbers
     std::vector<int> deviceNumbers;
     for (const auto& pair : decks) {
-        // Only show playing devices
-        if (pair.second.displayData.isPlaying) {
-            deviceNumbers.push_back(pair.first);
-            if (deviceNumbers.size() >= LayoutConfig::MAX_DECKS) break;
-        }
+        deviceNumbers.push_back(pair.first);
+        if (deviceNumbers.size() >= LayoutConfig::MAX_DECKS) break;
     }
     
     // Horizontal layout - all decks in a single row
@@ -200,7 +197,13 @@ void ofApp::drawDeckColumn(int deviceNumber, float x, float y, float width, floa
     const auto& deck = deckIt->second;
     const auto& device = deck.device;
     
-    float currentY = y;
+    // Estimate content height for vertical centering
+    // Header: ~120, Badges: ~56, Divider: ~30, BPM: ~150, Beat: ~140, Pitch: ~180
+    const float estimatedContentHeight = 550.0f;
+    float verticalOffset = (height - estimatedContentHeight) / 2.0f;
+    verticalOffset = std::max(0.0f, verticalOffset);  // Don't go negative
+    
+    float currentY = y + verticalOffset;
 
     // Device Name (Large)
     ofSetColor(255);
@@ -247,7 +250,7 @@ void ofApp::drawDeckColumn(int deviceNumber, float x, float y, float width, floa
     // Calculate total width
     float totalBadgeWidth = 0;
     for (const auto& badge : badges) {
-        float badgeWidth = badge.first.length() * 8.0f + LayoutConfig::BADGE_PADDING * 2;
+        float badgeWidth = badge.first.length() * 12.0f + LayoutConfig::BADGE_PADDING * 2;
         totalBadgeWidth += badgeWidth;
     }
     totalBadgeWidth += (badges.size() - 1) * LayoutConfig::BADGE_SPACING;
@@ -258,7 +261,7 @@ void ofApp::drawDeckColumn(int deviceNumber, float x, float y, float width, floa
     
     for (const auto& badge : badges) {
         drawStatusBadge(badgeX, badgeY, badge.first, badge.second);
-        float badgeWidth = badge.first.length() * 8.0f + LayoutConfig::BADGE_PADDING * 2;
+        float badgeWidth = badge.first.length() * 12.0f + LayoutConfig::BADGE_PADDING * 2;
         badgeX += badgeWidth + LayoutConfig::BADGE_SPACING;
     }
     
@@ -339,19 +342,12 @@ void ofApp::drawDeckColumn(int deviceNumber, float x, float y, float width, floa
         const auto& beat = deck.beat.value();
         float alpha = deck.beatAlpha;
         
-#ifndef ENABLE_TCP_FEATURES
-        // Check if playing (received beat within last 3 seconds)
-        bool isPlaying = deck.lastBeatTime > 0;
-
-        // Playing indicator (only when TCP features disabled)
-        if (isPlaying) {
-            ofSetColor(80, 255, 120);
-            std::string playingLabel = "PLAYING";
-            ofRectangle playingBounds = fontSmall.getStringBoundingBox(playingLabel, 0, 0);
-            fontSmall.drawString(playingLabel, x + (width - playingBounds.width) / 2.0f, currentY);
-            currentY += 40;
-        }
-#endif
+        // BPM label (above the number)
+        ofSetColor(150);
+        std::string bpmLabel = "BPM";
+        ofRectangle labelBounds = fontSmall.getStringBoundingBox(bpmLabel, 0, 0);
+        fontSmall.drawString(bpmLabel, x + (width - labelBounds.width) / 2.0f, currentY);
+        currentY += 20;
         
         // BPM (Very Large)
         std::string bpmStr = ofToString(beat.bpm, 1);
@@ -360,47 +356,41 @@ void ofApp::drawDeckColumn(int deviceNumber, float x, float y, float width, floa
         // BPM background flash
         if (alpha > 0.5f) {
             ofSetColor(20, 20, 20, 100 * alpha);
-            ofDrawRectangle(x, currentY - 20, width, 100);
+            ofDrawRectangle(x, currentY, width, 90);
         }
         
         ofSetColor(255);
-        fontLarge.drawString(bpmStr, x + (width - bpmBounds.width) / 2.0f, currentY + 60);
-        
-        // BPM label
-        ofSetColor(150);
-        std::string bpmLabel = "BPM";
-        ofRectangle labelBounds = fontSmall.getStringBoundingBox(bpmLabel, 0, 0);
-        fontSmall.drawString(bpmLabel, x + (width - labelBounds.width) / 2.0f, currentY + 90);
-        currentY += LayoutConfig::BPM_DISPLAY_HEIGHT;
+        fontLarge.drawString(bpmStr, x + (width - bpmBounds.width) / 2.0f, currentY + 70);
+        currentY += 130;
 
         // Beat Indicator (1-4)
         ofSetColor(150);
         std::string beatLabel = "BEAT";
         ofRectangle beatLabelBounds = fontSmall.getStringBoundingBox(beatLabel, 0, 0);
         fontSmall.drawString(beatLabel, x + (width - beatLabelBounds.width) / 2.0f, currentY);
-        currentY += LayoutConfig::ELEMENT_SPACING + 15;
+        currentY += 30;  // More space between label and circles
 
         drawBeatIndicator(x + width / 2.0f, currentY + LayoutConfig::BEAT_CIRCLE_SIZE, 
                           LayoutConfig::BEAT_CIRCLE_SIZE, beat.beatWithinBar, alpha);
-        currentY += LayoutConfig::BEAT_CIRCLE_SIZE * 2 + LayoutConfig::SECTION_SPACING;
+        currentY += LayoutConfig::BEAT_CIRCLE_SIZE * 2 + LayoutConfig::SECTION_SPACING+30;
 
         // Pitch Meter
         ofSetColor(150);
         std::string pitchLabel = "PITCH";
         ofRectangle pitchLabelBounds = fontSmall.getStringBoundingBox(pitchLabel, 0, 0);
         fontSmall.drawString(pitchLabel, x + (width - pitchLabelBounds.width) / 2.0f, currentY);
-        currentY += LayoutConfig::ELEMENT_SPACING + 15;
+        currentY += 25;  // Less space between label and slider
 
         const float pitchMeterPadding = LayoutConfig::PADDING;
         drawPitchMeter(x + pitchMeterPadding, currentY, width - pitchMeterPadding * 2, 40, beat.pitchPercent);
-        currentY += 50;
+        currentY += 75;
 
-        // Pitch value text
+        // Pitch value text (smaller)
         std::string pitchStr = (beat.pitchPercent >= 0 ? "+" : "") + ofToString(beat.pitchPercent, 2) + "%";
         ofSetColor(255);
-        ofRectangle pitchBounds = fontMedium.getStringBoundingBox(pitchStr, 0, 0);
-        fontMedium.drawString(pitchStr, x + (width - pitchBounds.width) / 2.0f, currentY + 30);
-        currentY += 60;
+        ofRectangle pitchBounds = fontSmall.getStringBoundingBox(pitchStr, 0, 0);
+        fontSmall.drawString(pitchStr, x + (width - pitchBounds.width) / 2.0f, currentY + 20);
+        currentY += 40;
 
         // Waveform (from DisplayData)
         // TODO: Re-enable when TCP issues are resolved
@@ -627,22 +617,9 @@ void ofApp::convertWaveformToImage(DeckInfo& deck) {
 // ============================================================================
 
 void ofApp::drawStatusBadge(float x, float y, const std::string& text, ofColor color) {
-    float width = text.length() * 8.0f + LayoutConfig::BADGE_PADDING * 2;
-    float height = LayoutConfig::BADGE_HEIGHT;
+    float width = text.length() * 12.0f + LayoutConfig::BADGE_PADDING * 2;
     
-    // Background
-    ofSetColor(color.r / 4, color.g / 4, color.b / 4);
-    ofDrawRectangle(x, y, width, height);
-    
-    // Border
-    ofSetColor(color);
-    ofNoFill();
-    ofSetLineWidth(2);
-    ofDrawRectangle(x, y, width, height);
-    ofFill();
-    ofSetLineWidth(1);
-    
-    // Text
+    // Text only
     ofSetColor(color);
     ofRectangle textBounds = fontSmall.getStringBoundingBox(text, 0, 0);
     fontSmall.drawString(text, x + (width - textBounds.width) / 2.0f, y + 18);
