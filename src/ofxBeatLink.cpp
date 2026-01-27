@@ -9,6 +9,10 @@ ofxBeatLink::~ofxBeatLink() {
     stop();
 }
 
+void ofxBeatLink::setVerboseDebug(bool on) {
+    beatlink::setVerboseDebug(on);
+}
+
 bool ofxBeatLink::start() {
     if (running_) {
         return true;

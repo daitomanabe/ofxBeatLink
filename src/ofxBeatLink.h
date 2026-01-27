@@ -106,6 +106,12 @@ public:
     bool isRunning() const;
 
     /**
+     * When true, VirtualCdj and ConnectionManager emit per-packet/per-connection DEBUG lines to stderr. Default false.
+     * Call from app when you need verbose logs (e.g. ofxBeatLink::setVerboseDebug(true)).
+     */
+    static void setVerboseDebug(bool on);
+
+    /**
      * Call this in ofApp::update() to process events on main thread.
      * This dispatches queued events to listeners.
      */
