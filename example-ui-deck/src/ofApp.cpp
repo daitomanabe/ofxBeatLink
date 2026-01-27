@@ -136,10 +136,10 @@ void ofApp::drawToFbo() {
         if (deviceNumbers.size() >= LayoutConfig::MAX_DECKS) break;
     }
     
-    // Decide layout based on device count
-    int cols = (deviceNumbers.size() <= 2) ? 2 : 2;
-    int rows = (deviceNumbers.size() <= 2) ? 1 : 2;
-    currentLayout = deviceNumbers.size() <= 2 ? 2 : 4;
+    // Horizontal layout - all decks in a single row
+    int cols = std::max(2, (int)deviceNumbers.size());  // Minimum 2 columns for layout
+    int rows = 1;  // Always single row
+    currentLayout = cols;
     
     float cellWidth = screenWidth / (float)cols;
     float cellHeight = screenHeight / (float)rows;
@@ -179,7 +179,8 @@ void ofApp::drawToFbo() {
     
     // Instructions at bottom
     ofSetColor(80);
-    std::string instructions = "Press 'Q' to quit | Layout: " + ofToString(currentLayout) + " decks";
+    std::string deviceCount = ofToString(deviceNumbers.size());
+    std::string instructions = "Press 'Q' to quit | Devices: " + deviceCount + " / " + ofToString(LayoutConfig::MAX_DECKS);
     ofRectangle bounds = fontSmall.getStringBoundingBox(instructions, 0, 0);
     fontSmall.drawString(instructions, (screenWidth - bounds.width) / 2.0f, screenHeight - 20);
     

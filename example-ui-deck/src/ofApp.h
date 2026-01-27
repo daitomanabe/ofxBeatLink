@@ -1,7 +1,7 @@
 #pragma once
 
 // Comment out this line to disable TCP features (VirtualCdj, track names, waveforms)
-//#define ENABLE_TCP_FEATURES
+#define ENABLE_TCP_FEATURES
 
 // Uncomment this line to show dummy data when TCP features are disabled (for UI testing)
 #define USE_DUMMY_DATA
@@ -55,7 +55,7 @@ private:
         // Screen settings
         static constexpr float SCREEN_WIDTH = 1920.0f;
         static constexpr float SCREEN_HEIGHT = 1080.0f;
-        static constexpr int MAX_DECKS = 2;
+        static constexpr int MAX_DECKS = 4;  // Support up to 4 decks in horizontal layout
         
         // Spacing
         static constexpr float PADDING = 40.0f;
