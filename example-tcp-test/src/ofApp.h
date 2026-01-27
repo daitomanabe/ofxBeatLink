@@ -2,10 +2,13 @@
 
 #include "ofMain.h"
 #include "ofxBeatLink.h"
+#include <set>
+#include <system_error>
 
 // Direct access to beat-link-cpp for TCP features
 #include <beatlink/VirtualCdj.hpp>
 #include <beatlink/CdjStatus.hpp>
+#include <beatlink/DeviceUpdateListener.hpp>
 #include <beatlink/data/MetadataFinder.hpp>
 #include <beatlink/data/TrackMetadata.hpp>
 #include <beatlink/data/ArtFinder.hpp>
@@ -33,6 +36,9 @@ private:
     bool metadataFinderStarted = false;
     bool artFinderStarted = false;
     bool waveformFinderStarted = false;
+    
+    // Listener for VirtualCdj updates
+    beatlink::DeviceUpdateListenerPtr updateListener;
     
     // Current data for each player
     struct PlayerData {

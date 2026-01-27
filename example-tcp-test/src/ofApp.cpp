@@ -11,7 +11,7 @@ void ofApp::setup() {
     ofAddListener(beatLink.deviceFoundEvent, this, &ofApp::onDeviceFound);
     ofAddListener(beatLink.deviceLostEvent, this, &ofApp::onDeviceLost);
     
-    // Step 1: Start basic listener
+    // Step 1: Start DeviceFinder/BeatFinder (mirror beat-link-trigger try-going-online)
     log("Starting DeviceFinder/BeatFinder...");
     if (beatLink.start()) {
         log("OK: Basic listener started");
@@ -20,34 +20,83 @@ void ofApp::setup() {
         return;
     }
     
-    // Step 2: Start VirtualCdj
-    log("Starting VirtualCdj (device #5)...");
+    // Step 2: Wait for at least one DJ Link device (like beat-link-trigger loop until getCurrentDevices)
+    log("Waiting for DJ Link devices...");
+    for (int i = 0; i < 200; ++i) {
+        if (!beatLink.getCurrentDevices().empty()) break;
+        ofSleepMillis(100);
+    }
+    if (beatLink.getCurrentDevices().empty()) {
+        log("ERROR: No DJ Link devices found after 20s. Connect CDJs/mixer and retry.");
+        return;
+    }
+    log("Found " + ofToString(beatLink.getCurrentDevices().size()) + " device(s)");
+    
+    // Step 3: Start VirtualCdj like beat-link-trigger (setUseStandardPlayerNumber then start() with no arg)
+    log("Starting VirtualCdj...");
     auto& vcdj = beatlink::VirtualCdj::getInstance();
     vcdj.setDeviceName("ofxTcpTest");
-    
-    if (vcdj.start(5)) {
+    vcdj.setUseStandardPlayerNumber(true);  // "Use Real Player Number" -> 1-4
+
+    if (vcdj.start()) {
         virtualCdjStarted = true;
         log("OK: VirtualCdj started as #" + ofToString((int)vcdj.getDeviceNumber()));
+        
+        // Debug: Show network info
+        try {
+            auto localAddr = vcdj.getLocalAddress();
+            auto broadcastAddr = vcdj.getBroadcastAddress();
+            log("  Local IP: " + localAddr.to_string());
+            log("  Broadcast: " + broadcastAddr.to_string());
+        } catch (const std::exception& e) {
+            log("  Network info error: " + std::string(e.what()));
+        }
+        
+        // Add update listener to see if we're receiving status
+        updateListener = std::make_shared<beatlink::DeviceUpdateCallbacks>(
+            [this](const beatlink::DeviceUpdate& update) {
+                int player = update.getDeviceNumber();
+                if (player > 6) return;  // Skip mixers
+                
+                // Check if it's a CdjStatus
+                const auto* cdjStatus = dynamic_cast<const beatlink::CdjStatus*>(&update);
+                if (cdjStatus) {
+                    static std::set<int> loggedPlayers;
+                    if (loggedPlayers.find(player) == loggedPlayers.end()) {
+                        std::string info = "CdjStatus from #" + std::to_string(player);
+                        info += " rekordboxId=" + std::to_string(cdjStatus->getRekordboxId());
+                        info += " loaded=" + std::string(cdjStatus->isTrackLoaded() ? "yes" : "no");
+                        ofLogNotice("TcpTest") << info;
+                        loggedPlayers.insert(player);
+                    }
+                }
+            }
+        );
+        vcdj.addUpdateListener(updateListener);
+        log("Added VirtualCdj update listener");
     } else {
         log("ERROR: VirtualCdj failed to start");
         return;
     }
     
-    // Step 3: Start MetadataFinder
+    // Step 4: Start MetadataFinder (beat-link-trigger: start-other-finders then actively-request-metadata)
     log("Starting MetadataFinder...");
     auto& metadataFinder = beatlink::data::MetadataFinder::getInstance();
     metadataFinder.start();
     metadataFinderStarted = metadataFinder.isRunning();
+    if (metadataFinderStarted && vcdj.getDeviceNumber() >= 1 && vcdj.getDeviceNumber() <= 4) {
+        metadataFinder.setPassive(false);  // actively request metadata from CDJs (like actively-request-metadata-from-cdj-3000s)
+    }
     log(metadataFinderStarted ? "OK: MetadataFinder started" : "ERROR: MetadataFinder failed");
     
-    // Step 4: Start ArtFinder
+    // Step 5: Start ArtFinder
     log("Starting ArtFinder...");
     auto& artFinder = beatlink::data::ArtFinder::getInstance();
     artFinder.start();
     artFinderStarted = artFinder.isRunning();
     log(artFinderStarted ? "OK: ArtFinder started" : "ERROR: ArtFinder failed");
     
-    // Step 5: Start WaveformFinder
+    // Step 6: Start WaveformFinder
     log("Starting WaveformFinder...");
     auto& waveformFinder = beatlink::data::WaveformFinder::getInstance();
     waveformFinder.setFindDetails(false);  // Preview only
@@ -61,75 +110,154 @@ void ofApp::setup() {
 void ofApp::update() {
     beatLink.update();
     
+    auto& vcdj = beatlink::VirtualCdj::getInstance();
+    const bool haveStatus = virtualCdjStarted && !vcdj.getLatestStatus().empty();
+    
+    // Check VirtualCdj status (debug)
+    static uint64_t lastStatusCheck = 0;
+    uint64_t now = ofGetElapsedTimeMillis();
+    if (virtualCdjStarted && (now - lastStatusCheck > 2000)) {
+        lastStatusCheck = now;
+        auto allStatus = vcdj.getLatestStatus();
+        log("VirtualCdj has " + ofToString(allStatus.size()) + " status entries");
+        
+        for (const auto& status : allStatus) {
+            if (status) {
+                const auto* cdjStatus = dynamic_cast<const beatlink::CdjStatus*>(status.get());
+                if (cdjStatus) {
+                    std::string info = "  #" + std::to_string(cdjStatus->getDeviceNumber());
+                    info += " rekordboxId=" + std::to_string(cdjStatus->getRekordboxId());
+                    info += " loaded=" + std::string(cdjStatus->isTrackLoaded() ? "yes" : "no");
+                    log(info);
+                }
+            }
+        }
+    }
+    
+    // Poll Finder data only when VirtualCdj has received at least one status.
+    // Otherwise Metadata/Art/Waveform have no source; Finders also depend on status.
+    if (!haveStatus) {
+        return;
+    }
+    
     // Poll data for each detected device
     for (const auto& device : devices) {
         int player = device.deviceNumber;
+        
+        // Skip non-player devices (like mixers)
+        if (player > 6) continue;
+        
         auto& data = playerData[player];
         
         // Update metadata
         if (metadataFinderStarted) {
-            auto& finder = beatlink::data::MetadataFinder::getInstance();
-            auto metadata = finder.getLatestMetadataFor(player);
-            if (metadata) {
-                data.title = metadata->getTitle();
-                auto artist = metadata->getArtist();
-                data.artist = artist ? artist->getLabel() : "";
+            try {
+                auto& finder = beatlink::data::MetadataFinder::getInstance();
+                auto metadata = finder.getLatestMetadataFor(player);
+                if (metadata) {
+                    data.title = metadata->getTitle();
+                    auto artist = metadata->getArtist();
+                    data.artist = artist ? artist->getLabel() : "";
+                }
+            } catch (const std::system_error& e) {
+                static std::set<int> loggedMetadataErrors;
+                if (loggedMetadataErrors.find(player) == loggedMetadataErrors.end()) {
+                    log("Metadata system_error (player " + ofToString(player) + "): " 
+                        + e.what() + " [code=" + ofToString(e.code().value()) + "]");
+                    loggedMetadataErrors.insert(player);
+                }
+            } catch (const std::exception& e) {
+                static std::set<int> loggedMetadataErrors2;
+                if (loggedMetadataErrors2.find(player) == loggedMetadataErrors2.end()) {
+                    log("Metadata error (player " + ofToString(player) + "): " + e.what());
+                    loggedMetadataErrors2.insert(player);
+                }
             }
         }
         
         // Update album art
         if (artFinderStarted && !data.hasArt) {
-            auto& finder = beatlink::data::ArtFinder::getInstance();
-            auto art = finder.getLatestArtFor(player);
-            if (art) {
-                auto decoded = art->decode();
-                if (decoded && decoded->isValid()) {
-                    ofPixels pixels;
-                    pixels.setFromPixels(decoded->pixels.data(), 
-                                         decoded->width, decoded->height, 
-                                         OF_PIXELS_RGBA);
-                    data.albumArt.setFromPixels(pixels);
-                    data.hasArt = true;
-                    log("Got album art for player " + ofToString(player));
+            try {
+                auto& finder = beatlink::data::ArtFinder::getInstance();
+                auto art = finder.getLatestArtFor(player);
+                if (art) {
+                    auto decoded = art->decode();
+                    if (decoded && decoded->isValid()) {
+                        ofPixels pixels;
+                        pixels.setFromPixels(decoded->pixels.data(), 
+                                             decoded->width, decoded->height, 
+                                             OF_PIXELS_RGBA);
+                        data.albumArt.setFromPixels(pixels);
+                        data.hasArt = true;
+                        log("Got album art for player " + ofToString(player));
+                    }
+                }
+            } catch (const std::system_error& e) {
+                static std::set<int> loggedArtErrors;
+                if (loggedArtErrors.find(player) == loggedArtErrors.end()) {
+                    log("Art system_error (player " + ofToString(player) + "): "
+                        + e.what() + " [code=" + ofToString(e.code().value()) + "]");
+                    loggedArtErrors.insert(player);
+                }
+            } catch (const std::exception& e) {
+                static std::set<int> loggedArtErrors2;
+                if (loggedArtErrors2.find(player) == loggedArtErrors2.end()) {
+                    log("Art error (player " + ofToString(player) + "): " + e.what());
+                    loggedArtErrors2.insert(player);
                 }
             }
         }
         
         // Update waveform
         if (waveformFinderStarted && !data.hasWaveform) {
-            auto& finder = beatlink::data::WaveformFinder::getInstance();
-            auto preview = finder.getLatestPreviewFor(player);
-            if (preview && preview->getSegmentCount() > 0) {
-                // Convert to image
-                int w = preview->getSegmentCount();
-                int h = 64;
-                ofPixels pixels;
-                pixels.allocate(w, h, OF_PIXELS_RGB);
-                pixels.setColor(ofColor(0));
-                
-                int centerY = h / 2;
-                for (int i = 0; i < w; i++) {
-                    int heightVal = preview->segmentHeight(i, true);
-                    float normalized = heightVal / 31.0f;
-                    int barHeight = (int)(normalized * (h / 2 - 2));
+            try {
+                auto& finder = beatlink::data::WaveformFinder::getInstance();
+                auto preview = finder.getLatestPreviewFor(player);
+                if (preview && preview->getSegmentCount() > 0) {
+                    // Convert to image
+                    int w = preview->getSegmentCount();
+                    int h = 64;
+                    ofPixels pixels;
+                    pixels.allocate(w, h, OF_PIXELS_RGB);
+                    pixels.setColor(ofColor(0));
                     
-                    ofColor color;
-                    if (preview->isColor()) {
-                        auto c = preview->segmentColor(i, true);
-                        color.set(c.r, c.g, c.b);
-                    } else {
-                        color.set(100, 180, 255);
+                    int centerY = h / 2;
+                    for (int i = 0; i < w; i++) {
+                        int heightVal = preview->segmentHeight(i, true);
+                        float normalized = heightVal / 31.0f;
+                        int barHeight = (int)(normalized * (h / 2 - 2));
+                        
+                        ofColor color;
+                        if (preview->isColor()) {
+                            auto c = preview->segmentColor(i, true);
+                            color.set(c.r, c.g, c.b);
+                        } else {
+                            color.set(100, 180, 255);
+                        }
+                        
+                        for (int y = 0; y < barHeight; y++) {
+                            if (centerY + y < h) pixels.setColor(i, centerY + y, color);
+                            if (centerY - y >= 0) pixels.setColor(i, centerY - y, color);
+                        }
                     }
                     
-                    for (int y = 0; y < barHeight; y++) {
-                        if (centerY + y < h) pixels.setColor(i, centerY + y, color);
-                        if (centerY - y >= 0) pixels.setColor(i, centerY - y, color);
-                    }
+                    data.waveform.setFromPixels(pixels);
+                    data.hasWaveform = true;
+                    log("Got waveform for player " + ofToString(player));
                 }
-                
-                data.waveform.setFromPixels(pixels);
-                data.hasWaveform = true;
-                log("Got waveform for player " + ofToString(player));
+            } catch (const std::system_error& e) {
+                static std::set<int> loggedWaveformErrors;
+                if (loggedWaveformErrors.find(player) == loggedWaveformErrors.end()) {
+                    log("Waveform system_error (player " + ofToString(player) + "): "
+                        + e.what() + " [code=" + ofToString(e.code().value()) + "]");
+                    loggedWaveformErrors.insert(player);
+                }
+            } catch (const std::exception& e) {
+                static std::set<int> loggedWaveformErrors2;
+                if (loggedWaveformErrors2.find(player) == loggedWaveformErrors2.end()) {
+                    log("Waveform error (player " + ofToString(player) + "): " + e.what());
+                    loggedWaveformErrors2.insert(player);
+                }
             }
         }
     }
@@ -159,6 +287,15 @@ void ofApp::draw() {
     ofSetColor(waveformFinderStarted ? ofColor(100, 255, 100) : ofColor(255, 100, 100));
     ofDrawBitmapString("WaveformFinder: " + std::string(waveformFinderStarted ? "OK" : "FAILED"), x, y);
     y += 30;
+    
+    // Hint when no status yet
+    if (virtualCdjStarted && beatlink::VirtualCdj::getInstance().getLatestStatus().empty()) {
+        ofSetColor(255, 200, 100);
+        ofDrawBitmapString("VirtualCdj is #1. Turn OFF real CDJ#1 so status (port 50002) reaches this app.", x, y);
+        y += 14;
+        ofDrawBitmapString("If CDJ#1 is on, use a different player number and turn that CDJ off.", x, y);
+        y += 20;
+    }
     
     // Devices
     ofSetColor(255);
@@ -242,7 +379,11 @@ void ofApp::exit() {
         beatlink::data::MetadataFinder::getInstance().stop();
     }
     if (virtualCdjStarted) {
-        beatlink::VirtualCdj::getInstance().stop();
+        auto& vcdj = beatlink::VirtualCdj::getInstance();
+        if (updateListener) {
+            vcdj.removeUpdateListener(updateListener);
+        }
+        vcdj.stop();
     }
     
     ofRemoveListener(beatLink.deviceFoundEvent, this, &ofApp::onDeviceFound);
