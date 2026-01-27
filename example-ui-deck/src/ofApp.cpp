@@ -89,6 +89,9 @@ void ofApp::update() {
             (currentTime - pair.second.lastBeatTime) > 3000) {
             // Device stopped playing
             pair.second.lastBeatTime = 0;
+            pair.second.displayData.isPlaying = false;
+        } else if (pair.second.lastBeatTime > 0) {
+            pair.second.displayData.isPlaying = true;
         }
 #endif
     }
@@ -129,11 +132,14 @@ void ofApp::drawToFbo() {
     const float screenHeight = LayoutConfig::SCREEN_HEIGHT;
     const float padding = LayoutConfig::PADDING;
     
-    // Get device numbers
+    // Get device numbers (only playing devices)
     std::vector<int> deviceNumbers;
     for (const auto& pair : decks) {
-        deviceNumbers.push_back(pair.first);
-        if (deviceNumbers.size() >= LayoutConfig::MAX_DECKS) break;
+        // Only show playing devices
+        if (pair.second.displayData.isPlaying) {
+            deviceNumbers.push_back(pair.first);
+            if (deviceNumbers.size() >= LayoutConfig::MAX_DECKS) break;
+        }
     }
     
     // Horizontal layout - all decks in a single row
@@ -259,69 +265,70 @@ void ofApp::drawDeckColumn(int deviceNumber, float x, float y, float width, floa
     currentY += LayoutConfig::BADGE_HEIGHT + LayoutConfig::SECTION_SPACING;
     
     // Album Art + Track Info (Horizontal Layout) - Centered
-    bool hasTrackInfo = !displayData.trackTitle.empty();
-    bool hasAlbumArt = displayData.hasAlbumArt && displayData.albumArt.isAllocated();
-    
-    if (hasAlbumArt || hasTrackInfo) {
-        const float artSize = LayoutConfig::ALBUM_ART_SIZE;
-        const float trackInfoSpacing = LayoutConfig::TRACK_INFO_SPACING;
-        
-        // Calculate total width of the content block
-        float totalContentWidth = artSize;
-        float maxTextWidth = 0;
-        
-        if (hasTrackInfo) {
-            std::string titleStr = displayData.trackTitle;
-            if (titleStr.length() > 20) titleStr = titleStr.substr(0, 20) + "...";
-            ofRectangle titleBounds = fontTitle.getStringBoundingBox(titleStr, 0, 0);
-            maxTextWidth = titleBounds.width;
-            
-            if (!displayData.trackArtist.empty()) {
-                std::string artistStr = displayData.trackArtist;
-                if (artistStr.length() > 25) artistStr = artistStr.substr(0, 25) + "...";
-                ofRectangle artistBounds = fontMedium.getStringBoundingBox(artistStr, 0, 0);
-                maxTextWidth = std::max(maxTextWidth, artistBounds.width);
-            }
-            
-            totalContentWidth += trackInfoSpacing + maxTextWidth;
-        }
-        
-        // Center the entire content block
-        float contentStartX = x + (width - totalContentWidth) / 2.0f;
-        float artX = contentStartX;
-        float textX = artX + artSize + trackInfoSpacing;
-        
-        // Draw album art
-        if (hasAlbumArt) {
-            drawAlbumArt(artX, currentY, artSize, displayData.albumArt);
-        } else {
-            // Placeholder
-            ofSetColor(30);
-            ofDrawRectangle(artX, currentY, artSize, artSize);
-        }
-        
-        // Draw track info next to album art
-        if (hasTrackInfo) {
-            float textY = currentY + 30;
-            
-            // Title (Large)
-            ofSetColor(255);
-            std::string titleStr = displayData.trackTitle;
-            if (titleStr.length() > 20) titleStr = titleStr.substr(0, 20) + "...";
-            fontTitle.drawString(titleStr, textX, textY);
-            textY += 50;
-            
-            // Artist
-            if (!displayData.trackArtist.empty()) {
-                ofSetColor(180);
-                std::string artistStr = displayData.trackArtist;
-                if (artistStr.length() > 25) artistStr = artistStr.substr(0, 25) + "...";
-                fontMedium.drawString(artistStr, textX, textY);
-            }
-        }
-        
-        currentY += artSize + LayoutConfig::SECTION_SPACING;
-    }
+    // TODO: Re-enable when TCP issues are resolved
+    // bool hasTrackInfo = !displayData.trackTitle.empty();
+    // bool hasAlbumArt = displayData.hasAlbumArt && displayData.albumArt.isAllocated();
+    // 
+    // if (hasAlbumArt || hasTrackInfo) {
+    //     const float artSize = LayoutConfig::ALBUM_ART_SIZE;
+    //     const float trackInfoSpacing = LayoutConfig::TRACK_INFO_SPACING;
+    //     
+    //     // Calculate total width of the content block
+    //     float totalContentWidth = artSize;
+    //     float maxTextWidth = 0;
+    //     
+    //     if (hasTrackInfo) {
+    //         std::string titleStr = displayData.trackTitle;
+    //         if (titleStr.length() > 20) titleStr = titleStr.substr(0, 20) + "...";
+    //         ofRectangle titleBounds = fontTitle.getStringBoundingBox(titleStr, 0, 0);
+    //         maxTextWidth = titleBounds.width;
+    //         
+    //         if (!displayData.trackArtist.empty()) {
+    //             std::string artistStr = displayData.trackArtist;
+    //             if (artistStr.length() > 25) artistStr = artistStr.substr(0, 25) + "...";
+    //             ofRectangle artistBounds = fontMedium.getStringBoundingBox(artistStr, 0, 0);
+    //             maxTextWidth = std::max(maxTextWidth, artistBounds.width);
+    //         }
+    //         
+    //         totalContentWidth += trackInfoSpacing + maxTextWidth;
+    //     }
+    //     
+    //     // Center the entire content block
+    //     float contentStartX = x + (width - totalContentWidth) / 2.0f;
+    //     float artX = contentStartX;
+    //     float textX = artX + artSize + trackInfoSpacing;
+    //     
+    //     // Draw album art
+    //     if (hasAlbumArt) {
+    //         drawAlbumArt(artX, currentY, artSize, displayData.albumArt);
+    //     } else {
+    //         // Placeholder
+    //         ofSetColor(30);
+    //         ofDrawRectangle(artX, currentY, artSize, artSize);
+    //     }
+    //     
+    //     // Draw track info next to album art
+    //     if (hasTrackInfo) {
+    //         float textY = currentY + 30;
+    //         
+    //         // Title (Large)
+    //         ofSetColor(255);
+    //         std::string titleStr = displayData.trackTitle;
+    //         if (titleStr.length() > 20) titleStr = titleStr.substr(0, 20) + "...";
+    //         fontTitle.drawString(titleStr, textX, textY);
+    //         textY += 50;
+    //         
+    //         // Artist
+    //         if (!displayData.trackArtist.empty()) {
+    //             ofSetColor(180);
+    //             std::string artistStr = displayData.trackArtist;
+    //             if (artistStr.length() > 25) artistStr = artistStr.substr(0, 25) + "...";
+    //             fontMedium.drawString(artistStr, textX, textY);
+    //         }
+    //     }
+    //     
+    //     currentY += artSize + LayoutConfig::SECTION_SPACING;
+    // }
 
     // Divider line
     ofSetColor(40);
@@ -396,18 +403,19 @@ void ofApp::drawDeckColumn(int deviceNumber, float x, float y, float width, floa
         currentY += 60;
 
         // Waveform (from DisplayData)
-        if (displayData.hasWaveform && displayData.waveformImage.isAllocated()) {
-            ofSetColor(150);
-            std::string waveLabel = "WAVEFORM";
-            ofRectangle waveLabelBounds = fontSmall.getStringBoundingBox(waveLabel, 0, 0);
-            fontSmall.drawString(waveLabel, x + (width - waveLabelBounds.width) / 2.0f, currentY);
-            currentY += LayoutConfig::ELEMENT_SPACING + 15;
-            
-            const float wavePadding = LayoutConfig::PADDING;
-            drawWaveform(x + wavePadding, currentY, width - wavePadding * 2, 
-                        LayoutConfig::WAVEFORM_HEIGHT, displayData.waveformImage);
-            currentY += LayoutConfig::WAVEFORM_HEIGHT + LayoutConfig::ELEMENT_SPACING;
-        }
+        // TODO: Re-enable when TCP issues are resolved
+        // if (displayData.hasWaveform && displayData.waveformImage.isAllocated()) {
+        //     ofSetColor(150);
+        //     std::string waveLabel = "WAVEFORM";
+        //     ofRectangle waveLabelBounds = fontSmall.getStringBoundingBox(waveLabel, 0, 0);
+        //     fontSmall.drawString(waveLabel, x + (width - waveLabelBounds.width) / 2.0f, currentY);
+        //     currentY += LayoutConfig::ELEMENT_SPACING + 15;
+        //     
+        //     const float wavePadding = LayoutConfig::PADDING;
+        //     drawWaveform(x + wavePadding, currentY, width - wavePadding * 2, 
+        //                 LayoutConfig::WAVEFORM_HEIGHT, displayData.waveformImage);
+        //     currentY += LayoutConfig::WAVEFORM_HEIGHT + LayoutConfig::ELEMENT_SPACING;
+        // }
 
     } else {
         // No beat data yet

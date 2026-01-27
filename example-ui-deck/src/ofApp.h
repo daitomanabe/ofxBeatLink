@@ -1,10 +1,11 @@
 #pragma once
 
 // Comment out this line to disable TCP features (VirtualCdj, track names, waveforms)
-#define ENABLE_TCP_FEATURES
+// TODO: Re-enable when TCP issues are resolved
+//#define ENABLE_TCP_FEATURES
 
 // Uncomment this line to show dummy data when TCP features are disabled (for UI testing)
-#define USE_DUMMY_DATA
+//#define USE_DUMMY_DATA
 
 #include "ofMain.h"
 #include "ofxBeatLink.h"
