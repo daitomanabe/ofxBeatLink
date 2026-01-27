@@ -29,6 +29,9 @@ void ofApp::setup() {
     
     // Setup OSC (send to localhost:7000 by default)
     oscSender.setup("localhost", 7000);
+    
+    // Setup OSC for beat trigger (port 7666)
+    beatOscSender.setup("localhost", 7666);
 
     // Register event listeners
     ofAddListener(beatLink.beatEvent, this, &ofApp::onBeat);
@@ -138,6 +141,9 @@ void ofApp::drawToFbo() {
         deviceNumbers.push_back(pair.first);
         if (deviceNumbers.size() >= LayoutConfig::MAX_DECKS) break;
     }
+    
+    // Reverse order (display right to left: 4, 3, 2, 1)
+    std::reverse(deviceNumbers.begin(), deviceNumbers.end());
     
     // Horizontal layout - all decks in a single row
     int cols = std::max(2, (int)deviceNumbers.size());  // Minimum 2 columns for layout
@@ -513,6 +519,17 @@ void ofApp::onBeat(ofxBeatLinkBeat& beat) {
 
     // Send BPM over OSC
     sendBpmOverOsc(beat.deviceNumber, beat.bpm);
+    
+    // Send beat OSC from selected playing device (auto-select first playing device)
+    if (selectedBeatDevice == -1) {
+        // Auto-select: use the first device that sends a beat
+        selectedBeatDevice = beat.deviceNumber;
+        ofLogNotice("onBeat") << "Auto-selected device #" << selectedBeatDevice << " for beat OSC";
+    }
+    
+    if (beat.deviceNumber == selectedBeatDevice) {
+        sendBeatOsc(beat.deviceNumber, beat.beatWithinBar, beat.bpm);
+    }
 
     ofLogNotice("onBeat") << "Device #" << beat.deviceNumber
                           << " | BPM: " << beat.bpm
@@ -846,4 +863,13 @@ void ofApp::sendBpmOverOsc(int deviceNumber, float bpm) {
     msg.addFloatArg(bpm);
     msg.addIntArg(deviceNumber);
     oscSender.sendMessage(msg);
+}
+
+void ofApp::sendBeatOsc(int deviceNumber, int beatWithinBar, float bpm) {
+    ofxOscMessage msg;
+    msg.setAddress("/beat");
+    msg.addIntArg(beatWithinBar);  // 1-4
+    msg.addFloatArg(bpm);
+    msg.addIntArg(deviceNumber);
+    beatOscSender.sendMessage(msg);
 }

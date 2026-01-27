@@ -50,6 +50,8 @@ private:
     
     // OSC
     ofxOscSender oscSender;
+    ofxOscSender beatOscSender;  // For beat trigger on port 7666
+    int selectedBeatDevice = -1;  // Device number to send beat OSC from (-1 = auto select first playing)
     
     // Layout settings - centralized configuration
     struct LayoutConfig {
@@ -142,6 +144,7 @@ private:
     
     // OSC
     void sendBpmOverOsc(int deviceNumber, float bpm);
+    void sendBeatOsc(int deviceNumber, int beatWithinBar, float bpm);
     
 #ifdef USE_DUMMY_DATA
     void initializeDummyData(DeckInfo& deck);
