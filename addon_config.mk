@@ -47,30 +47,35 @@ common:
 	ADDON_SOURCES += libs/crate-digger-cpp/src/core/rekordbox_pdb.cpp
 
 	# C++ flags (Asio standalone mode, C++17 required)
-	# BEATLINK_NO_TIMEFINDER: Disable TimeFinder to avoid complex dependencies
-	# BEATLINK_NO_VIRTUALCDJ: Disable VirtualCdj to avoid complex dependencies (sqlite3, utf8proc)
-	ADDON_CPPFLAGS = -DASIO_STANDALONE -DBEATLINK_NO_TIMEFINDER -DBEATLINK_NO_VIRTUALCDJ -std=c++17
+	# Note: VirtualCdj/TimeFinder flags are platform-specific (see below)
+	ADDON_CPPFLAGS = -DASIO_STANDALONE -std=c++17
 
 osx:
-	# macOS specific settings
+	# macOS specific settings - disable VirtualCdj (no prebuilt libs)
 	ADDON_FRAMEWORKS =
+	ADDON_CPPFLAGS += -DBEATLINK_NO_VIRTUALCDJ -DBEATLINK_NO_TIMEFINDER
 
 linux64:
-	# Linux specific settings
+	# Linux specific settings - disable VirtualCdj (no prebuilt libs)
 	ADDON_LDFLAGS = -lpthread
+	ADDON_CPPFLAGS += -DBEATLINK_NO_VIRTUALCDJ -DBEATLINK_NO_TIMEFINDER
 
 linux:
 	ADDON_LDFLAGS = -lpthread
+	ADDON_CPPFLAGS += -DBEATLINK_NO_VIRTUALCDJ -DBEATLINK_NO_TIMEFINDER
 
 linuxarmv6l:
 	ADDON_LDFLAGS = -lpthread
+	ADDON_CPPFLAGS += -DBEATLINK_NO_VIRTUALCDJ -DBEATLINK_NO_TIMEFINDER
 
 linuxarmv7l:
 	ADDON_LDFLAGS = -lpthread
+	ADDON_CPPFLAGS += -DBEATLINK_NO_VIRTUALCDJ -DBEATLINK_NO_TIMEFINDER
 
 msys2:
-	# Windows MSYS2 settings
+	# Windows MSYS2 settings - disable VirtualCdj (no prebuilt libs)
 	ADDON_LDFLAGS = -lws2_32
+	ADDON_CPPFLAGS += -DBEATLINK_NO_VIRTUALCDJ -DBEATLINK_NO_TIMEFINDER
 
 vs:
 	# Visual Studio settings - link prebuilt libraries
